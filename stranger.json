@@ -1,0 +1,181 @@
+{
+  "expectedTarballFiles": [
+    "package/LICENSE",
+    "package/README.md",
+    "package/dist/app-api.d.ts",
+    "package/dist/app-api.js",
+    "package/dist/app-backend-binding-vocabulary.d.ts",
+    "package/dist/app-backend-binding-vocabulary.js",
+    "package/dist/app-backend-bindings.d.ts",
+    "package/dist/app-backend-bindings.js",
+    "package/dist/app-declaration.d.ts",
+    "package/dist/app-declaration.js",
+    "package/dist/app-event-facts.d.ts",
+    "package/dist/app-event-facts.js",
+    "package/dist/app-method-context.d.ts",
+    "package/dist/app-method-context.js",
+    "package/dist/app-method-runtime.d.ts",
+    "package/dist/app-method-runtime.js",
+    "package/dist/app-origin-paths.d.ts",
+    "package/dist/app-origin-paths.js",
+    "package/dist/app-vocabulary.d.ts",
+    "package/dist/app-vocabulary.js",
+    "package/dist/app.d.ts",
+    "package/dist/app.js",
+    "package/dist/artifact-dispositions.d.ts",
+    "package/dist/artifact-dispositions.js",
+    "package/dist/assets.d.ts",
+    "package/dist/assets.js",
+    "package/dist/backend.d.ts",
+    "package/dist/backend.js",
+    "package/dist/background-replay.d.ts",
+    "package/dist/background-replay.js",
+    "package/dist/buyer-references.d.ts",
+    "package/dist/buyer-references.js",
+    "package/dist/cloudflare-assets.d.ts",
+    "package/dist/cloudflare-assets.js",
+    "package/dist/cloudflare.d.ts",
+    "package/dist/cloudflare.js",
+    "package/dist/effect.d.ts",
+    "package/dist/effect.js",
+    "package/dist/git-representation.d.ts",
+    "package/dist/git-representation.js",
+    "package/dist/inbox.d.ts",
+    "package/dist/inbox.js",
+    "package/dist/index.d.ts",
+    "package/dist/index.js",
+    "package/dist/internal/app-description.d.ts",
+    "package/dist/internal/app-description.js",
+    "package/dist/internal/app-release-artifact-reader.d.ts",
+    "package/dist/internal/app-release-artifact-reader.js",
+    "package/dist/internal/app-release-contract.d.ts",
+    "package/dist/internal/app-release-contract.js",
+    "package/dist/internal/app-release-schema.d.ts",
+    "package/dist/internal/app-release-schema.js",
+    "package/dist/internal/app-release-store.d.ts",
+    "package/dist/internal/app-release-store.js",
+    "package/dist/internal/background-sync.d.ts",
+    "package/dist/internal/background-sync.js",
+    "package/dist/internal/deterministic-memory-app-release-store.d.ts",
+    "package/dist/internal/deterministic-memory-app-release-store.js",
+    "package/dist/internal/failure.d.ts",
+    "package/dist/internal/failure.js",
+    "package/dist/internal/immutable-release-material.d.ts",
+    "package/dist/internal/immutable-release-material.js",
+    "package/dist/internal/promise-app-release-store-adapter.d.ts",
+    "package/dist/internal/promise-app-release-store-adapter.js",
+    "package/dist/internal/promise-artifact-reader-adapter.d.ts",
+    "package/dist/internal/promise-artifact-reader-adapter.js",
+    "package/dist/internal/public-route-sql.d.ts",
+    "package/dist/internal/public-route-sql.js",
+    "package/dist/internal/public-website-authority.d.ts",
+    "package/dist/internal/public-website-authority.js",
+    "package/dist/internal/public-website-delivery.d.ts",
+    "package/dist/internal/public-website-delivery.js",
+    "package/dist/internal/public-website-fetch.d.ts",
+    "package/dist/internal/public-website-fetch.js",
+    "package/dist/internal/release-transition-material.d.ts",
+    "package/dist/internal/release-transition-material.js",
+    "package/dist/internal/verified-artifact-snapshot.d.ts",
+    "package/dist/internal/verified-artifact-snapshot.js",
+    "package/dist/public-route-moderation.d.ts",
+    "package/dist/public-route-moderation.js",
+    "package/dist/public-route-policy.d.ts",
+    "package/dist/public-route-policy.js",
+    "package/dist/public-routes.d.ts",
+    "package/dist/public-routes.js",
+    "package/dist/publisher.d.ts",
+    "package/dist/publisher.js",
+    "package/dist/safety-takedown.d.ts",
+    "package/dist/safety-takedown.js",
+    "package/dist/seller-closure-notice.d.ts",
+    "package/dist/seller-closure-notice.js",
+    "package/dist/seller-closure.d.ts",
+    "package/dist/seller-closure.js",
+    "package/dist/testing.d.ts",
+    "package/dist/testing.js",
+    "package/docs/api/README.md",
+    "package/docs/api/app-backend-binding-vocabulary.md",
+    "package/docs/api/app-backend-bindings.md",
+    "package/docs/api/app-event-facts.md",
+    "package/docs/api/app-method-context.md",
+    "package/docs/api/app-method-runtime.md",
+    "package/docs/api/backend.md",
+    "package/docs/api/background-replay.md",
+    "package/docs/api/cloudflare.md",
+    "package/docs/api/effect.md",
+    "package/docs/api/git-representation.md",
+    "package/docs/api/inbox.md",
+    "package/docs/api/index.md",
+    "package/docs/api/publisher.md",
+    "package/docs/api/testing.md",
+    "package/package.json"
+  ],
+  "localDependencies": ["../cairn", "../gills", "../watchdog"],
+  "runtimeFixture": "test/stranger/runtime.mjs",
+  "typecheckFixture": "test/stranger/consumer.mts",
+  "docs": {
+    "sigil": "installApps",
+    "home": {
+      "lead": "An immutable release catalog for teams hosting other people's web apps: promote the Release that should go live and serve only bytes that match its digest.",
+      "example": {
+        "file": "home.ts",
+        "title": "Create an App and check an unpublished route",
+        "caption": "Creates an App in the in-memory catalog, then resolves a route nothing has been promoted to; the catalog refuses to serve it and prints the error it throws."
+      },
+      "ladder": {
+        "start": [
+          {
+            "title": "Quickstart",
+            "href": "/quickstart/",
+            "description": "Create an App, a route and a Release, then serve it and revoke it."
+          },
+          {
+            "title": "Core concepts",
+            "href": "/concepts/#core-concepts",
+            "description": "Apps, Releases, Public Surfaces and transition receipts."
+          }
+        ],
+        "tasks": [
+          {
+            "title": "Create an App and promote a Release",
+            "href": "/api/entry/",
+            "description": "createAppReleaseCatalog, the parse* boundary parsers and the transition kinds."
+          },
+          {
+            "title": "Test against the Effect core",
+            "href": "/api/effect/",
+            "description": "createAppReleaseCore, decode* functions and the in-memory store."
+          },
+          {
+            "title": "Run on Cloudflare Workers",
+            "href": "/api/cloudflare/",
+            "description": "The D1 store, the R2 artifact reader and the fresh D1 schema."
+          },
+          {
+            "title": "Register a publishing repository",
+            "href": "/api/publisher/",
+            "description": "Schemas for connecting an App's source repo to a publishing Team."
+          }
+        ],
+        "reference": [
+          {
+            "title": "API reference",
+            "href": "/api/",
+            "description": "Every export from the root and its ./effect, ./cloudflare and other entrypoints."
+          },
+          {
+            "title": "Install",
+            "href": "/install/",
+            "description": "Entrypoints, runtime dependencies and Node.js version."
+          },
+          {
+            "title": "Status and limits",
+            "href": "/status/",
+            "description": "Stability, errors and license."
+          }
+        ]
+      }
+    }
+  }
+}

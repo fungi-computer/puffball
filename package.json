@@ -1,0 +1,161 @@
+{
+  "name": "@fungi.computer/puffball",
+  "version": "0.0.1",
+  "author": "Levi <levi@technomancy.dev>",
+  "description": "Immutable App/Release catalog with verified public website delivery",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./effect": {
+      "types": "./dist/effect.d.ts",
+      "import": "./dist/effect.js"
+    },
+    "./cloudflare": {
+      "types": "./dist/cloudflare.d.ts",
+      "import": "./dist/cloudflare.js"
+    },
+    "./app": {
+      "types": "./dist/app.d.ts",
+      "import": "./dist/app.js"
+    },
+    "./backend": {
+      "types": "./dist/backend.d.ts",
+      "import": "./dist/backend.js"
+    },
+    "./assets": {
+      "types": "./dist/assets.d.ts",
+      "import": "./dist/assets.js"
+    },
+    "./cloudflare-assets": {
+      "types": "./dist/cloudflare-assets.d.ts",
+      "import": "./dist/cloudflare-assets.js"
+    },
+    "./buyer-references": {
+      "types": "./dist/buyer-references.d.ts",
+      "import": "./dist/buyer-references.js"
+    },
+    "./safety-takedown": {
+      "types": "./dist/safety-takedown.d.ts",
+      "import": "./dist/safety-takedown.js"
+    },
+    "./public-route-moderation": {
+      "types": "./dist/public-route-moderation.d.ts",
+      "import": "./dist/public-route-moderation.js"
+    },
+    "./app-origin-paths": {
+      "types": "./dist/app-origin-paths.d.ts",
+      "import": "./dist/app-origin-paths.js"
+    },
+    "./public-routes": {
+      "types": "./dist/public-routes.d.ts",
+      "import": "./dist/public-routes.js"
+    },
+    "./public-route-policy": {
+      "types": "./dist/public-route-policy.d.ts",
+      "import": "./dist/public-route-policy.js"
+    },
+    "./publisher": {
+      "types": "./dist/publisher.d.ts",
+      "import": "./dist/publisher.js"
+    },
+    "./artifact-dispositions": {
+      "types": "./dist/artifact-dispositions.d.ts",
+      "import": "./dist/artifact-dispositions.js"
+    },
+    "./seller-closure-notice": {
+      "types": "./dist/seller-closure-notice.d.ts",
+      "import": "./dist/seller-closure-notice.js"
+    },
+    "./seller-closure": {
+      "types": "./dist/seller-closure.d.ts",
+      "import": "./dist/seller-closure.js"
+    },
+    "./app-method-runtime": {
+      "types": "./dist/app-method-runtime.d.ts",
+      "import": "./dist/app-method-runtime.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
+    },
+    "./git-representation": {
+      "types": "./dist/git-representation.d.ts",
+      "import": "./dist/git-representation.js"
+    },
+    "./app-event-facts": {
+      "types": "./dist/app-event-facts.d.ts",
+      "import": "./dist/app-event-facts.js"
+    },
+    "./inbox": {
+      "types": "./dist/inbox.d.ts",
+      "import": "./dist/inbox.js"
+    },
+    "./background-replay": {
+      "types": "./dist/background-replay.d.ts",
+      "import": "./dist/background-replay.js"
+    }
+  },
+  "files": [
+    "dist",
+    "docs/api",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "lint": "eslint --global URL --global TextEncoder src test examples --max-warnings=0 && ../../node_modules/.bin/oxlint --config ../../oxlint.config.ts --deny-warnings src test examples",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "pnpm run clean && tsc -p tsconfig.build.json",
+    "clean": "node --input-type=module --eval \"import { rm } from 'node:fs/promises'; await rm('dist', { recursive: true, force: true });\"",
+    "test": "vitest run --config vitest.node.config.ts && vitest run --config vitest.cloudflare.config.ts && vitest run --config vitest.cloudflare.restart.config.ts && vitest run --config vitest.cloudflare.transition.config.ts && vitest run --config vitest.cloudflare.transition-storage.config.ts && vitest run --config vitest.cloudflare.transition-lifecycle.config.ts && vitest run --config vitest.cloudflare.transition-idempotency.config.ts && vitest run --config vitest.cloudflare.a1-2.config.ts && vitest run --config vitest.cloudflare.public-routes.config.ts",
+    "test:cloudflare": "../../node_modules/.bin/vitest run --config vitest.cloudflare.config.ts && ../../node_modules/.bin/vitest run --config vitest.cloudflare.restart.config.ts && ../../node_modules/.bin/vitest run --config vitest.cloudflare.transition.config.ts && ../../node_modules/.bin/vitest run --config vitest.cloudflare.transition-storage.config.ts && ../../node_modules/.bin/vitest run --config vitest.cloudflare.transition-lifecycle.config.ts && ../../node_modules/.bin/vitest run --config vitest.cloudflare.transition-idempotency.config.ts && ../../node_modules/.bin/vitest run --config vitest.cloudflare.a1-2.config.ts && ../../node_modules/.bin/vitest run --config vitest.cloudflare.public-routes.config.ts",
+    "docs": "tsx ../../tooling/repository/src/docs/cli.ts check --root ../..",
+    "docs:write": "tsx ../../tooling/repository/src/docs/cli.ts write --root ../..",
+    "pack": "mkdir -p ../../.botanical/puffball-pack && pnpm pack --pack-destination ../../.botanical/puffball-pack",
+    "smoke": "node --input-type=module -e \"import('./dist/index.js').then(({createAppReleaseCatalog}) => { if (typeof createAppReleaseCatalog !== 'function') process.exit(1); })\"",
+    "stranger": "tsx ../../tooling/repository/src/artifacts/cli.ts --repo-root ../.. .",
+    "demo:a1.2": "node --import tsx examples/a1-2-public-website.ts",
+    "demo:a1.2:self-check": "node --import tsx examples/a1-2-public-website.ts --self-check",
+    "format:check": "node ../../tooling/repository/scripts/format-package-check.mjs",
+    "lint:anti-slop": "node ../../tooling/repository/scripts/lint-package-anti-slop.mjs",
+    "test:unit": "../../node_modules/.bin/vitest run --config vitest.node.config.ts",
+    "test:merge": "pnpm run test:cloudflare"
+  },
+  "dependencies": {
+    "@fungi.computer/cairn": "workspace:*",
+    "effect": "4.0.2",
+    "@fungi.computer/cloudflare-worker-bundler": "workspace:*",
+    "zod": "4.4.3",
+    "@fungi.computer/watchdog": "workspace:*",
+    "@fungi.computer/gills": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.1.2",
+    "@types/node": "24.13.3",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11",
+    "@cloudflare/workers-types": "5.20260828.1"
+  },
+  "botanical": {
+    "role": "package",
+    "operations": {
+      "lint": "required",
+      "typecheck": "required",
+      "build": "required",
+      "test": "required",
+      "docs": "required",
+      "pack": "required",
+      "smoke": "required",
+      "stranger": "required"
+    }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fungi-computer/puffball.git"
+  }
+}
