@@ -62,17 +62,20 @@ export const appBackendBindingKinds = {
         requires: ["git.repository", "computer.execute"],
         effect: "write",
       },
-      /** Read one build job's current status; the host re-checks the caller is the owner. */
+      /** Read one build job's current status; the host re-checks the caller
+       * is the owner. An operation is granted only through approved
+       * capabilities, so it needs the ones its build was admitted with. */
       buildStatus: {
         cap: "app.build",
-        requires: [],
+        requires: ["git.repository", "computer.execute"],
         effect: "read",
       },
       /** Install a Release at an installation id, or switch a live one onto
-       * it; the host re-checks the caller is the owner. */
+       * it; the host re-checks the caller is the owner. It completes the
+       * build-and-install loop, under the capabilities a build needs. */
       select: {
         cap: "app.select",
-        requires: [],
+        requires: ["git.repository", "computer.execute"],
         effect: "write",
       },
       catalog: {
@@ -80,10 +83,11 @@ export const appBackendBindingKinds = {
         requires: ["team.workbenchHost"],
         effect: "read",
       },
-      /** Fork a platform App's published source into its own Team-owned App. */
+      /** Fork a platform App's published source into its own Team-owned App,
+       * as a repository in the calling installation's Git. */
       fork: {
         cap: "app.fork",
-        requires: [],
+        requires: ["git.repository"],
         effect: "write",
       },
     },
