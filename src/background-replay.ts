@@ -21,13 +21,15 @@ export const backgroundOriginSchema =
 /** Origin evidence, never a retained grant or credential. */
 export type BackgroundOrigin = z.output<typeof backgroundOriginSchema>;
 /** The closed result of checking a claimed job's origin in a fresh replay frame. */
-export const claimedJobAdmissionSchema = z.union([
-  z.strictObject({ kind: z.literal("admitted") }),
-  z.strictObject({
-    kind: z.literal("refused"),
-    code: z.literal("access_changed"),
-  }),
-]);
+export const claimedJobAdmissionSchema = z.lazy(() =>
+  z.union([
+    z.strictObject({ kind: z.literal("admitted") }),
+    z.strictObject({
+      kind: z.literal("refused"),
+      code: z.literal("access_changed"),
+    }),
+  ]),
+);
 /** A claim either passes origin admission or refuses before binding effects. */
 export type ClaimedJobAdmission = z.output<typeof claimedJobAdmissionSchema>;
 /** Host-minted replay port; an App cannot declare this binding. */
@@ -187,29 +189,35 @@ export function mayEnqueueBackground(context: AppMethodCallContext): boolean {
 }
 
 const member = z.strictObject(hostActorSchema.def.options[0].shape);
-const revision = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
+const revision = z.lazy(() =>
+  z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+);
 /** Identity and observed revisions only. Unknown fields, including bearer material, refuse. */
-export const backgroundWakeSchema = z
-  .strictObject({
-    installationId: z.string().min(1).max(256),
-    actor: member,
-    lane: z
-      .string()
-      .refine((value) => Schema.is(WatchdogQueuedJobSchema.fields.lane)(value)),
-    originMethod: z.string().refine(isAppApiMethodName),
-    observed: z.strictObject({
-      authorityVersion: revision,
-      artifactDigest: z.custom<Sha256Digest>((value) =>
-        Schema.is(sha256DigestSchema)(value),
-      ),
-      // Oyster has no member revision. The Hub supplies its real directory revision.
-      membershipVersion: revision.optional(),
+export const backgroundWakeSchema = z.lazy(() =>
+  z
+    .strictObject({
+      installationId: z.string().min(1).max(256),
+      actor: member,
+      lane: z
+        .string()
+        .refine((value) =>
+          Schema.is(WatchdogQueuedJobSchema.fields.lane)(value),
+        ),
+      originMethod: z.string().refine(isAppApiMethodName),
+      observed: z.strictObject({
+        authorityVersion: revision,
+        artifactDigest: z.custom<Sha256Digest>((value) =>
+          Schema.is(sha256DigestSchema)(value),
+        ),
+        // Oyster has no member revision. The Hub supplies its real directory revision.
+        membershipVersion: revision.optional(),
+      }),
+      epoch: revision,
+    })
+    .refine((wake) => wake.lane === actorLane(wake.actor), {
+      message: "Wake lane must name its member",
     }),
-    epoch: revision,
-  })
-  .refine((wake) => wake.lane === actorLane(wake.actor), {
-    message: "Wake lane must name its member",
-  });
+);
 /** A host wake cannot confer authority without fresh directory and method admission. */
 export type BackgroundWake = z.output<typeof backgroundWakeSchema>;
 /** A retained identity eligible for member-only replay. */

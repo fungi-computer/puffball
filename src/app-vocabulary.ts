@@ -79,6 +79,7 @@ export const appCapabilityIds = [
   "agent.list",
   "agent.manage",
   "agent.rename",
+  "agent.avatar",
   "agent.toolPolicy",
   "agent.read",
   "agent.send",
@@ -128,6 +129,8 @@ export type AppApi = Readonly<{
         hidden?: true | undefined;
         /** Request anonymous read admission; declaration alone grants no authority. */
         anonymous?: true | undefined;
+        /** Finished calls read as a person-facing row projected by the App's hidden `present` method. */
+        present?: Readonly<{ verb: string }> | undefined;
       }>
     >
   >;

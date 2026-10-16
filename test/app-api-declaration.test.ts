@@ -43,6 +43,17 @@ const backend = {
 const decode = Schema.decodeUnknownSync(appDeclarationSchema);
 
 describe("digest-covered App API declaration", () => {
+  test("carries a method's presentation verb as bounded display metadata", () => {
+    const presented = (verb: string) => ({
+      methods: { read: { ...api.methods.read, present: { verb } } },
+    });
+    const decodeApi = Schema.decodeUnknownSync(appApiSchema);
+    expect(decodeApi(presented("read")).methods.read?.present).toEqual({
+      verb: "read",
+    });
+    expect(() => decodeApi(presented(""))).toThrow();
+    expect(() => decodeApi(presented("x".repeat(33)))).toThrow();
+  });
   test("preserves an anonymous read request in release bytes without inventing approval", () => {
     const marked: AppDeclaration = {
       ...declaration,

@@ -1,5 +1,21 @@
 # @fungi.computer/puffball
 
+## 0.1.0
+
+### Minor Changes
+
+- Changes since 0.0.2:
+
+  - feat(agents): make the avatar a property of the Agent, not the conversation
+  - perf(puffball): build schemas on first use, not at import
+  - feat(agar): let App methods declare how a finished call reads
+  - feat(oyster): public release 0.1.0
+
+### Patch Changes
+
+- Updated dependencies
+  - @fungi.computer/gills@0.1.0
+
 ## 0.0.2
 
 ### Patch Changes

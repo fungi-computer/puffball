@@ -17,4 +17,4 @@ export const gitRefUpdateSchema = z.strictObject({
 });
 
 /** Host push event IDs include the Computer and local event identity. */
-export const gitPushEventIdSchema = z.string().min(1).max(512);
+export const gitPushEventIdSchema = z.lazy(() => z.string().min(1).max(512));

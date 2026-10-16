@@ -44,6 +44,11 @@ const method = Schema.Struct({
   pending: Schema.optional(Schema.Literal(true)),
   hidden: Schema.optional(Schema.Literal(true)),
   anonymous: Schema.optional(Schema.Literal(true)),
+  present: Schema.optional(
+    Schema.Struct({
+      verb: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(32)),
+    }),
+  ),
   effect: Schema.Literals(["read", "write", "external"]),
   requires: Schema.Array(Schema.Literals(appCapabilityIds)).pipe(
     Schema.check(

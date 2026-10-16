@@ -61,10 +61,12 @@ export const workflowAttestationSchema = z.object({
 export type WorkflowAttestation = z.output<typeof workflowAttestationSchema>;
 // Keep the single origin grammar in the lightweight caller module. The host-side
 // background-replay entry exposes this same schema without a runtime import cycle.
-const backgroundOrigin = z.strictObject({
-  method: z.string().check(z.refine((name) => isAppApiMethodName(name))),
-  seal: z.string().check(z.regex(/^[A-Za-z0-9_-]{43}$/u)),
-});
+const backgroundOrigin = z.lazy(() =>
+  z.strictObject({
+    method: z.string().check(z.refine((name) => isAppApiMethodName(name))),
+    seal: z.string().check(z.regex(/^[A-Za-z0-9_-]{43}$/u)),
+  }),
+);
 /** Sole grammar for the host-minted Computer pin and actor attribution. */
 export const appMethodCallerSchema = z.object({
   computerId: z.nullable(identity),
