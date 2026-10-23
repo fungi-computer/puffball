@@ -192,12 +192,14 @@ const appMethodCallerSchema: ZodMiniObject<
     >;
     backgroundLane: ZodMiniOptional<ZodMiniString<string>>;
     backgroundOrigin: ZodMiniOptional<
-      ZodMiniObject<
-        {
-          method: ZodMiniString<string>;
-          seal: ZodMiniString<string>;
-        },
-        $strict
+      ZodMiniLazy<
+        ZodMiniObject<
+          {
+            method: ZodMiniString<string>;
+            seal: ZodMiniString<string>;
+          },
+          $strict
+        >
       >
     >;
     role: ZodMiniOptional<

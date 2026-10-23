@@ -85,7 +85,7 @@ const appEventFactSchema: ZodObject<
     gitSource: ZodOptional<
       ZodObject<
         {
-          eventId: ZodString;
+          eventId: ZodLazy<ZodString>;
           repository: ZodString;
           updates: ZodArray<
             ZodObject<

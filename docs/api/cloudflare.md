@@ -765,6 +765,78 @@ R2 operations used by the scoped Team erasure owner.
 
 ---
 
+### ReleaseBootResultKey
+
+```ts
+type ReleaseBootResultKey = Readonly<{
+  releaseId: string;
+  checkVersion: string;
+}>;
+```
+
+One boot result's identity: the Release and the version of the check that judged
+it.
+
+---
+
+### ReleaseBootResultRecord
+
+```ts
+type ReleaseBootResultRecord = Readonly<{
+  kind: "recorded";
+  result: Schema.Json;
+  checkedAt: number;
+}>;
+```
+
+A recorded boot result, opaque JSON owned by the boot gate that wrote it.
+
+---
+
+### ReleaseBootResults
+
+```ts
+type ReleaseBootResults = Readonly<{
+  read: (key) => Promise<
+    | Readonly<{
+        kind: "absent";
+      }>
+    | ReleaseBootResultRecord
+  >;
+  recordIfAbsent: (input) => Promise<ReleaseBootResultRecord>;
+}>;
+```
+
+One boot result per Release and check version, beside the Release in the global
+catalog. Whoever checks first (the publisher at submission or a Team's first
+install) records it; everyone reads it; nobody rechecks. The catalog owns
+identity and write-once storage; the boot gate owns the result's meaning and
+parses it on read.
+
+Writers are host-run checkers only, recording only definitive outcomes (never an
+inconclusive or "not checked" run) with sanitized diagnostics; the result covers
+the UI page check alone, not backend construction.
+
+---
+
+### BootCapabilityRows
+
+```ts
+type BootCapabilityRows = Readonly<{
+  issue: (input) => Promise<void>;
+  resolve: (tokenDigest, now) => Promise<string | null>;
+  revoke: (leaseId) => Promise<void>;
+}>;
+```
+
+The catalog storage behind a host's boot `BootCapabilityStore`: one short-lived
+row per issued lease, keyed by the token's digest (never the token). The lease
+itself is opaque JSON owned by the boot capability contract, which parses it on
+resolve. Expired rows are deleted on resolve and purged on every issue; revoke
+deletes.
+
+---
+
 ### ArtifactSnapshotPolicy
 
 ```ts
@@ -820,6 +892,16 @@ const APP_RELEASE_D1_FRESH_SCHEMA: string;
 ```
 
 The one current App Release D1 schema for an empty catalog.
+
+---
+
+### BOOT\_CAPABILITY\_MAX\_LIFETIME\_MS
+
+```ts
+const BOOT_CAPABILITY_MAX_LIFETIME_MS: 60000 = 60_000;
+```
+
+The longest a boot capability lease may live: one boot check plus cleanup.
 
 ## Functions
 
@@ -877,6 +959,46 @@ Create the native registry that joins a Team publisher to one App/source.
 #### Returns
 
 [`TeamAppPublisherRegistry`](publisher.md#teamapppublisherregistry)
+
+---
+
+### createD1ReleaseBootResults()
+
+```ts
+function createD1ReleaseBootResults(database): ReleaseBootResults;
+```
+
+The catalog's write-once boot results, over the same App Release D1.
+
+#### Parameters
+
+| Parameter  | Type                                            |
+| ---------- | ----------------------------------------------- |
+| `database` | [`AppReleaseD1Database`](#appreleased1database) |
+
+#### Returns
+
+[`ReleaseBootResults`](#releasebootresults)
+
+---
+
+### createD1BootCapabilityRows()
+
+```ts
+function createD1BootCapabilityRows(database): BootCapabilityRows;
+```
+
+The catalog's short-lived boot capability rows, over the same App Release D1.
+
+#### Parameters
+
+| Parameter  | Type                                            |
+| ---------- | ----------------------------------------------- |
+| `database` | [`AppReleaseD1Database`](#appreleased1database) |
+
+#### Returns
+
+[`BootCapabilityRows`](#bootcapabilityrows)
 
 ---
 

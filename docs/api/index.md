@@ -746,6 +746,9 @@ type AppApi = Readonly<{
         pending?: true;
         hidden?: true;
         anonymous?: true;
+        present?: Readonly<{
+          verb: string;
+        }>;
       }>
     >
   >;
@@ -2560,6 +2563,7 @@ format lives in `@fungi.computer/agar/roles`.
 
 ```ts
 const appCapabilityIds: readonly [
+  "approvals",
   "agent.list",
   "agent.manage",
   "agent.rename",

@@ -17,6 +17,21 @@ import {
   appDeclarationSchema,
 } from "../src/app.js";
 
+it("offers ordinary Computer execution without an App credential operation", () => {
+  expect(
+    appBackendBindingOperation("COMPUTER", "workflowGitPass"),
+  ).toBeUndefined();
+  expect(() =>
+    Schema.decodeUnknownSync(appBackendBindingsSchema)([
+      { name: "COMPUTER", operations: ["workflowGitPass"] },
+    ]),
+  ).toThrow();
+  const bindings = [{ name: "COMPUTER", operations: ["exec", "processStart"] }];
+  expect(Schema.decodeUnknownSync(appBackendBindingsSchema)(bindings)).toEqual(
+    bindings,
+  );
+});
+
 it("registers BACKGROUND admission for hosts while refusing App-declared bindings", () => {
   expect(appBackendBindingOperation("BACKGROUND", "admit")).toEqual({
     cap: "app.background.admit",

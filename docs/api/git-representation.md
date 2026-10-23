@@ -50,7 +50,7 @@ One ref update, bounded before a host asks the App or forwards the push.
 ### gitPushEventIdSchema
 
 ```ts
-const gitPushEventIdSchema: ZodString;
+const gitPushEventIdSchema: ZodLazy<ZodString>;
 ```
 
 Host push event IDs include the Computer and local event identity.

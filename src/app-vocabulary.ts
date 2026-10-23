@@ -76,6 +76,7 @@ export function resolveAppRoles(
  * Team's installation grants decide. Extend this list here.
  */
 export const appCapabilityIds = [
+  "approvals",
   "agent.list",
   "agent.manage",
   "agent.rename",

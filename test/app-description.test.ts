@@ -229,7 +229,7 @@ describe("one App Release", () => {
       category: "File",
       projections: {
         slash: { aliases: ["save"] },
-        bindings: { values: ["mod+s", "<leader> w"] },
+        bindings: { values: ["mod+s", "<leader>w"] },
         palette: {},
       },
     };

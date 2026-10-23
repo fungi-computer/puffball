@@ -150,12 +150,14 @@ A refused wake settles its lane; retry uses the existing Carrier backoff.
 ### backgroundOriginSchema
 
 ```ts
-const backgroundOriginSchema: ZodMiniObject<
-  {
-    method: ZodMiniString<string>;
-    seal: ZodMiniString<string>;
-  },
-  $strict
+const backgroundOriginSchema: ZodMiniLazy<
+  ZodMiniObject<
+    {
+      method: ZodMiniString<string>;
+      seal: ZodMiniString<string>;
+    },
+    $strict
+  >
 > = appMethodCallerSchema.shape.backgroundOrigin.def.innerType;
 ```
 
@@ -166,22 +168,24 @@ The caller's single lightweight grammar for a host-sealed enqueue origin.
 ### claimedJobAdmissionSchema
 
 ```ts
-const claimedJobAdmissionSchema: ZodUnion<
-  readonly [
-    ZodObject<
-      {
-        kind: ZodLiteral<"admitted">;
-      },
-      $strict
-    >,
-    ZodObject<
-      {
-        kind: ZodLiteral<"refused">;
-        code: ZodLiteral<"access_changed">;
-      },
-      $strict
-    >,
-  ]
+const claimedJobAdmissionSchema: ZodLazy<
+  ZodUnion<
+    readonly [
+      ZodObject<
+        {
+          kind: ZodLiteral<"admitted">;
+        },
+        $strict
+      >,
+      ZodObject<
+        {
+          kind: ZodLiteral<"refused">;
+          code: ZodLiteral<"access_changed">;
+        },
+        $strict
+      >,
+    ]
+  >
 >;
 ```
 
@@ -192,29 +196,31 @@ The closed result of checking a claimed job's origin in a fresh replay frame.
 ### backgroundWakeSchema
 
 ```ts
-const backgroundWakeSchema: ZodObject<
-  {
-    installationId: ZodString;
-    actor: ZodObject<
-      {
-        kind: ZodMiniLiteral<"member">;
-        memberId: ZodMiniString<string>;
-      },
-      $strict
-    >;
-    lane: ZodString;
-    originMethod: ZodString;
-    observed: ZodObject<
-      {
-        authorityVersion: ZodNumber;
-        artifactDigest: ZodCustom<Sha256Digest, Sha256Digest>;
-        membershipVersion: ZodOptional<ZodNumber>;
-      },
-      $strict
-    >;
-    epoch: ZodNumber;
-  },
-  $strict
+const backgroundWakeSchema: ZodLazy<
+  ZodObject<
+    {
+      installationId: ZodString;
+      actor: ZodObject<
+        {
+          kind: ZodMiniLiteral<"member">;
+          memberId: ZodMiniString<string>;
+        },
+        $strict
+      >;
+      lane: ZodString;
+      originMethod: ZodString;
+      observed: ZodObject<
+        {
+          authorityVersion: ZodLazy<ZodNumber>;
+          artifactDigest: ZodCustom<Sha256Digest, Sha256Digest>;
+          membershipVersion: ZodOptional<ZodLazy<ZodNumber>>;
+        },
+        $strict
+      >;
+      epoch: ZodLazy<ZodNumber>;
+    },
+    $strict
+  >
 >;
 ```
 

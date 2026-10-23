@@ -111,9 +111,18 @@
     "package/docs/api/testing.md",
     "package/package.json"
   ],
-  "localDependencies": ["../cairn", "../gills", "../watchdog"],
+  "localDependencies": [
+    "../../forks/cloudflare-worker-bundler",
+    "../cairn",
+    "../gills",
+    "../watchdog"
+  ],
   "runtimeFixture": "test/stranger/runtime.mjs",
-  "typecheckFixture": "test/stranger/consumer.mts",
+  "typechecks": [
+    {
+      "fixture": "test/stranger/consumer.mts"
+    }
+  ],
   "docs": {
     "sigil": "installApps",
     "home": {

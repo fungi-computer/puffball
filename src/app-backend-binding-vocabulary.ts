@@ -57,6 +57,19 @@ export const appBackendBindingKinds = {
   APPS: {
     name: "APPS",
     operations: {
+      /** Register the calling installation's repository as an App from its
+       * exact main manifest. No Computer execution or installation is implied. */
+      register: {
+        cap: "app.register",
+        requires: ["git.repository"],
+        effect: "write",
+      },
+      /** Read the captured installation's registered repository identity. */
+      repository: {
+        cap: "app.catalog.read",
+        requires: ["git.repository"],
+        effect: "read",
+      },
       build: {
         cap: "app.build",
         requires: ["git.repository", "computer.execute"],
@@ -223,11 +236,6 @@ export const appBackendBindingKinds = {
       write: {
         cap: "app.computer.write",
         requires: ["computer.writeFile"],
-        effect: "write",
-      },
-      workflowGitPass: {
-        cap: "app.computer.exec",
-        requires: ["computer.execute"],
         effect: "write",
       },
       preview: {

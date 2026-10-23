@@ -16,6 +16,8 @@ export default defineConfig({
       "test/cloudflare-bindings.smoke.test.mjs",
       "test/cloudflare-catalog-conformance.test.mjs",
       "test/cloudflare-publisher-authority.test.mjs",
+      "test/cloudflare-boot-results.test.mjs",
+      "test/cloudflare-boot-capabilities.test.mjs",
     ],
   },
 });

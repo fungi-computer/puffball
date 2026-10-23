@@ -1046,6 +1046,11 @@ CREATE INDEX app_release_team_publishers_team_idx ON app_release_team_publishers
 CREATE TABLE app_release_release_verification_metadata (release_id TEXT PRIMARY KEY REFERENCES app_release_release_verifications(release_id), artifact_digest TEXT NOT NULL, description_json TEXT NOT NULL CHECK(json_valid(description_json))) STRICT;
 CREATE TABLE publisher_template_seed_receipts (template_repository TEXT NOT NULL, seed_revision TEXT NOT NULL, platform_app_id TEXT NOT NULL, source_revision TEXT NOT NULL, source_tree_digest TEXT NOT NULL, recipe_json TEXT CHECK(recipe_json IS NULL OR json_valid(recipe_json)), build_recipe_digest TEXT CHECK(build_recipe_digest IS NULL OR (length(build_recipe_digest) = 71 AND substr(build_recipe_digest, 1, 7) = 'sha256:' AND substr(build_recipe_digest, 8) NOT GLOB '*[^0-9a-f]*')), CHECK((recipe_json IS NULL) = (build_recipe_digest IS NULL)), PRIMARY KEY (template_repository, seed_revision)) STRICT;
 CREATE TABLE publisher_artifacts_repositories (repository_name TEXT PRIMARY KEY CHECK(length(repository_name) BETWEEN 1 AND 128), provider_id TEXT NOT NULL CHECK(length(provider_id) > 0), default_branch TEXT NOT NULL CHECK(default_branch = 'main'), remote TEXT NOT NULL CHECK(length(remote) > 0), parent_repository TEXT REFERENCES publisher_artifacts_repositories(repository_name), CHECK(parent_repository IS NULL OR parent_repository <> repository_name)) STRICT;
+CREATE TABLE app_release_boot_results (release_id TEXT NOT NULL REFERENCES app_release_releases(release_id), check_version TEXT NOT NULL CHECK(length(check_version) BETWEEN 1 AND 64), outcome_json TEXT NOT NULL CHECK(json_valid(outcome_json) AND length(outcome_json) <= 65536), checked_at INTEGER NOT NULL, PRIMARY KEY (release_id, check_version)) STRICT;
+CREATE TRIGGER app_release_boot_results_write_once BEFORE UPDATE ON app_release_boot_results BEGIN SELECT RAISE(ABORT, 'App Release boot results are write-once'); END;
+CREATE TABLE app_release_boot_capabilities (token_digest TEXT PRIMARY KEY CHECK(length(token_digest) = 64 AND token_digest NOT GLOB '*[^0-9a-f]*'), lease_id TEXT NOT NULL UNIQUE CHECK(length(lease_id) BETWEEN 1 AND 128), release_id TEXT NOT NULL REFERENCES app_release_releases(release_id), lease_json TEXT NOT NULL CHECK(json_valid(lease_json) AND length(lease_json) <= 262144), expires_at INTEGER NOT NULL) STRICT;
+CREATE INDEX app_release_boot_capabilities_expiry_idx ON app_release_boot_capabilities(expires_at);
+CREATE TRIGGER app_release_boot_capabilities_write_once BEFORE UPDATE ON app_release_boot_capabilities BEGIN SELECT RAISE(ABORT, 'Boot capability leases are write-once'); END;
 ${publicRouteSchemaSql}
 ${platformOwnerReplaySchemaSql}
 ${buyerReferenceSchemaSql}
@@ -1204,6 +1209,187 @@ export function createD1TeamAppPublisherRegistry(
       return current.registration.teamId === teamId
         ? ({ kind: "authorized", registration: current.registration } as const)
         : ({ kind: "denied" } as const);
+    },
+  };
+}
+
+/** One boot result's identity: the Release and the version of the check that judged it. */
+export type ReleaseBootResultKey = Readonly<{
+  releaseId: string;
+  checkVersion: string;
+}>;
+
+/** A recorded boot result, opaque JSON owned by the boot gate that wrote it. */
+export type ReleaseBootResultRecord = Readonly<{
+  kind: "recorded";
+  result: Schema.Json;
+  checkedAt: number;
+}>;
+
+/**
+ * One boot result per Release and check version, beside the Release in the
+ * global catalog. Whoever checks first (the publisher at submission or a
+ * Team's first install) records it; everyone reads it; nobody rechecks.
+ * The catalog owns identity and write-once storage; the boot gate owns the
+ * result's meaning and parses it on read.
+ *
+ * Writers are host-run checkers only, recording only definitive outcomes
+ * (never an inconclusive or "not checked" run) with sanitized diagnostics;
+ * the result covers the UI page check alone, not backend construction.
+ */
+export type ReleaseBootResults = Readonly<{
+  /** The recorded result for this Release and check version, if any. */
+  read: (
+    key: ReleaseBootResultKey,
+  ) => Promise<Readonly<{ kind: "absent" }> | ReleaseBootResultRecord>;
+  /** Record a result unless one exists; always answers with the stored one. */
+  recordIfAbsent: (
+    input: ReleaseBootResultKey &
+      Readonly<{ result: Schema.Json; checkedAt: number }>,
+  ) => Promise<ReleaseBootResultRecord>;
+}>;
+
+const bootResultRowSchema = Schema.Struct({
+  outcome_json: Schema.fromJsonString(Schema.Json),
+  checked_at: Schema.Number,
+});
+
+/** The catalog's write-once boot results, over the same App Release D1. */
+export function createD1ReleaseBootResults(
+  database: AppReleaseD1Database,
+): ReleaseBootResults {
+  const read: ReleaseBootResults["read"] = async (key) => {
+    const row = await database
+      .prepare(
+        `SELECT outcome_json, checked_at FROM app_release_boot_results
+         WHERE release_id = ? AND check_version = ?`,
+      )
+      .bind(parseReleaseId(key.releaseId), key.checkVersion)
+      .first();
+    if (row === null) return { kind: "absent" };
+    const decoded = Schema.decodeUnknownSync(bootResultRowSchema)(row);
+    return {
+      kind: "recorded",
+      result: decoded.outcome_json,
+      checkedAt: decoded.checked_at,
+    };
+  };
+  return {
+    read,
+    recordIfAbsent: async (input) => {
+      await database
+        .prepare(
+          `INSERT INTO app_release_boot_results
+             (release_id, check_version, outcome_json, checked_at)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT (release_id, check_version) DO NOTHING`,
+        )
+        .bind(
+          parseReleaseId(input.releaseId),
+          input.checkVersion,
+          JSON.stringify(input.result),
+          input.checkedAt,
+        )
+        .run();
+      const stored = await read(input);
+      if (stored.kind === "absent")
+        throw new Error("The boot result was not recorded");
+      return stored;
+    },
+  };
+}
+
+/** The longest a boot capability lease may live: one boot check plus cleanup. */
+export const BOOT_CAPABILITY_MAX_LIFETIME_MS = 60_000;
+
+const tokenDigestSchema = Schema.String.pipe(
+  Schema.check(Schema.isPattern(/^[0-9a-f]{64}$/u)),
+);
+const bootCapabilityRowSchema = Schema.Struct({ lease_json: Schema.String });
+
+/**
+ * The catalog storage behind a host's boot `BootCapabilityStore`: one
+ * short-lived row per issued lease, keyed by the token's digest (never the
+ * token). The lease itself is opaque JSON owned by the boot capability
+ * contract, which parses it on resolve. Expired rows are deleted on resolve
+ * and purged on every issue; revoke deletes.
+ */
+export type BootCapabilityRows = Readonly<{
+  /** Store one lease; refuses a raw token or a lifetime beyond the maximum. */
+  issue: (
+    input: Readonly<{
+      tokenDigest: string;
+      leaseId: string;
+      releaseId: string;
+      leaseJson: string;
+      expiresAt: number;
+      now: number;
+    }>,
+  ) => Promise<void>;
+  /** The live lease's JSON for this digest, or `null` when absent or expired. */
+  resolve: (tokenDigest: string, now: number) => Promise<string | null>;
+  /** Delete one lease once its check is done. */
+  revoke: (leaseId: string) => Promise<void>;
+}>;
+
+/** The catalog's short-lived boot capability rows, over the same App Release D1. */
+export function createD1BootCapabilityRows(
+  database: AppReleaseD1Database,
+): BootCapabilityRows {
+  return {
+    issue: async (input) => {
+      const tokenDigest = Schema.decodeUnknownSync(tokenDigestSchema)(
+        input.tokenDigest,
+      );
+      if (
+        input.expiresAt <= input.now ||
+        input.expiresAt - input.now > BOOT_CAPABILITY_MAX_LIFETIME_MS
+      )
+        throw new RangeError("Boot capability lifetime is out of bounds");
+      await database.batch([
+        database
+          .prepare(
+            "DELETE FROM app_release_boot_capabilities WHERE expires_at <= ?",
+          )
+          .bind(input.now),
+        database
+          .prepare(
+            `INSERT INTO app_release_boot_capabilities
+               (token_digest, lease_id, release_id, lease_json, expires_at)
+             VALUES (?, ?, ?, ?, ?)`,
+          )
+          .bind(
+            tokenDigest,
+            input.leaseId,
+            parseReleaseId(input.releaseId),
+            input.leaseJson,
+            input.expiresAt,
+          ),
+      ]);
+    },
+    resolve: async (tokenDigest, now) => {
+      const digest = Schema.decodeUnknownSync(tokenDigestSchema)(tokenDigest);
+      await database
+        .prepare(
+          "DELETE FROM app_release_boot_capabilities WHERE token_digest = ? AND expires_at <= ?",
+        )
+        .bind(digest, now)
+        .run();
+      const row = await database
+        .prepare(
+          "SELECT lease_json FROM app_release_boot_capabilities WHERE token_digest = ? AND expires_at > ?",
+        )
+        .bind(digest, now)
+        .first();
+      return row === null
+        ? null
+        : Schema.decodeUnknownSync(bootCapabilityRowSchema)(row).lease_json;
+    },
+    revoke: async (leaseId) => {
+      await database
+        .prepare("DELETE FROM app_release_boot_capabilities WHERE lease_id = ?")
+        .bind(leaseId)
+        .run();
     },
   };
 }
