@@ -113,6 +113,31 @@ export type AppCapabilityId = (typeof appCapabilityIds)[number];
 export type { AppBackendBinding } from "./app-backend-binding-vocabulary.js";
 import type { AppBackendBinding } from "./app-backend-binding-vocabulary.js";
 
+/**
+ * Effect-free DTO projection of the owning JSON schema; equality is tested.
+ * Workers RPC's Serializable mapping unfolds anonymous inline recursion.
+ * A named array branch bounds it without expanding an inline array,
+ * without importing Effect into this declaration graph.
+ * @inline
+ */
+export type AppApiJsonValue =
+  null | boolean | number | string | AppApiJsonArray | AppApiJsonObject;
+/**
+ * Named recursive array branch required by the Workers RPC type mapper.
+ * @inline
+ */
+export type AppApiJsonArray = {
+  readonly [index: number]: AppApiJsonValue;
+  readonly length: number;
+};
+/**
+ * Package-internal declaration name; the public root exports AppApi.
+ * @inline
+ */
+export type AppApiJsonObject = {
+  readonly [key: string]: AppApiJsonValue;
+};
+
 /** Build-generated method and event metadata. This data-only projection grants no authority. */
 export type AppApi = Readonly<{
   methods: Readonly<
@@ -120,16 +145,14 @@ export type AppApi = Readonly<{
       string,
       Readonly<{
         description: string;
-        input: object;
-        output: object;
+        input: AppApiJsonObject;
+        output: AppApiJsonObject;
         effect: "read" | "write" | "external";
         requires: readonly AppCapabilityId[];
         /** This method may return Agar's shared Pending result while working. */
         pending?: true | undefined;
         /** Omit from Workflow and tool discovery, without changing direct-call authority. */
         hidden?: true | undefined;
-        /** Request anonymous read admission; declaration alone grants no authority. */
-        anonymous?: true | undefined;
         /** Finished calls read as a person-facing row projected by the App's hidden `present` method. */
         present?: Readonly<{ verb: string }> | undefined;
       }>
@@ -143,7 +166,7 @@ export type AppApi = Readonly<{
       string,
       Readonly<{
         description: string;
-        payload: object;
+        payload: AppApiJsonObject;
       }>
     >
   >;

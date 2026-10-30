@@ -130,6 +130,11 @@ export const appBackendBindingKinds = {
         requires: ["workflow.run", "workflow.arm"],
         effect: "write",
       },
+      pauseSchedule: {
+        cap: "app.workflow.run",
+        requires: ["workflow.run", "workflow.arm"],
+        effect: "write",
+      },
       schedules: {
         cap: "app.workflow.read",
         requires: ["workflow.run"],
@@ -272,6 +277,21 @@ export const appBackendBindingKinds = {
     operations: {
       list: { cap: "agent.list", requires: ["agent.list"], effect: "read" },
       send: { cap: "agent.send", requires: ["agent.send"], effect: "write" },
+      schedules: {
+        cap: "agent.read",
+        requires: ["agent.read"],
+        effect: "read",
+      },
+      pauseSchedule: {
+        cap: "agent.manage",
+        requires: ["agent.manage"],
+        effect: "write",
+      },
+      deleteSchedule: {
+        cap: "agent.manage",
+        requires: ["agent.manage"],
+        effect: "write",
+      },
     },
   },
 } as const satisfies Readonly<

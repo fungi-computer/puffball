@@ -17,6 +17,36 @@ import {
   appDeclarationSchema,
 } from "../src/app.js";
 
+it("declares independent Agent schedule reads and future-only controls", () => {
+  expect(appBackendBindingOperation("AGENTS", "schedules")).toEqual({
+    cap: "agent.read",
+    requires: ["agent.read"],
+    effect: "read",
+  });
+  for (const operation of ["pauseSchedule", "deleteSchedule"])
+    expect(appBackendBindingOperation("AGENTS", operation)).toEqual({
+      cap: "agent.manage",
+      requires: ["agent.manage"],
+      effect: "write",
+    });
+  const declaration = {
+    capabilities: ["agent.read", "agent.manage"],
+    handlers: [],
+    roles: [],
+    backend: {
+      bindings: [
+        {
+          name: "AGENTS",
+          operations: ["schedules", "pauseSchedule", "deleteSchedule"],
+        },
+      ],
+    },
+  };
+  expect(
+    Schema.decodeUnknownSync(appDeclarationSchema)(declaration),
+  ).toMatchObject(declaration);
+});
+
 it("offers ordinary Computer execution without an App credential operation", () => {
   expect(
     appBackendBindingOperation("COMPUTER", "workflowGitPass"),
@@ -286,6 +316,23 @@ it("declares only generic graph operations for Workflows", () => {
     expect(() =>
       declaration([{ name: "WORKFLOWS", operations: [operation] }]),
     ).toThrow();
+});
+
+it("declares schedule pause as a write requiring the same grants as disarm", () => {
+  const pause = [{ name: "WORKFLOWS", operations: ["pauseSchedule"] }];
+  expect(Schema.decodeUnknownSync(appBackendBindingsSchema)(pause)).toEqual(
+    pause,
+  );
+  expect(appBackendBindingOperation("WORKFLOWS", "pauseSchedule")).toEqual({
+    cap: "app.workflow.run",
+    requires: ["workflow.run", "workflow.arm"],
+    effect: "write",
+  });
+  expect(appBackendBindingOperation("WORKFLOWS", "disarmSchedule")).toEqual({
+    cap: "app.workflow.run",
+    requires: ["workflow.run", "workflow.arm"],
+    effect: "write",
+  });
 });
 
 it("refuses reserved RPC and lifecycle names for binding operations", () => {

@@ -6,6 +6,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import * as defaultRoot from "../dist/index.js";
 import type {
   App,
+  AppApi,
   AppCreate,
   AppId,
   AppRead,
@@ -125,6 +126,27 @@ function reachableDeclarationGraph(entrypoint: URL): string {
 }
 
 describe("App Release Schema/default projections", () => {
+  it("keeps App JSON metadata bidirectionally equal to its owning JSON schema", () => {
+    expectTypeOf<
+      BidirectionallyEqual<
+        AppApi["methods"][string]["input"],
+        Schema.JsonObject
+      >
+    >().toEqualTypeOf<true>();
+    expectTypeOf<
+      BidirectionallyEqual<
+        AppApi["methods"][string]["output"],
+        Schema.JsonObject
+      >
+    >().toEqualTypeOf<true>();
+    expectTypeOf<
+      BidirectionallyEqual<
+        NonNullable<AppApi["events"]>[string]["payload"],
+        Schema.JsonObject
+      >
+    >().toEqualTypeOf<true>();
+  });
+
   it("keeps every canonical data projection bidirectionally type-equal", () => {
     expectTypeOf<AppId>().toEqualTypeOf<
       Schema.Schema.Type<typeof appIdSchema>

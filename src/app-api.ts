@@ -8,12 +8,18 @@ export const appApiMethodNameSchema = Schema.String.check(
   Schema.makeFilter(isAppApiMethodName),
 );
 
+/** Distinguish containers only after the owning JSON decoder has succeeded. */
+function isJsonContainer(
+  value: Schema.Json,
+): value is Schema.JsonArray | Schema.JsonObject {
+  return value !== null && typeof value === "object";
+}
+
 function withinDepth(value: Schema.Json, depth = 0): boolean {
   if (depth > 16) return false;
-  if (Schema.is(Schema.Array(Schema.Json))(value))
-    return value.every((child) => withinDepth(child, depth + 1));
-  if (Schema.is(Schema.JsonObject)(value))
-    return Object.values(value).every((child) => withinDepth(child, depth + 1));
+  if (isJsonContainer(value))
+    for (const child of Object.values(value))
+      if (!withinDepth(child, depth + 1)) return false;
   return true;
 }
 
@@ -43,7 +49,6 @@ const method = Schema.Struct({
   output: projection,
   pending: Schema.optional(Schema.Literal(true)),
   hidden: Schema.optional(Schema.Literal(true)),
-  anonymous: Schema.optional(Schema.Literal(true)),
   present: Schema.optional(
     Schema.Struct({
       verb: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(32)),
@@ -55,16 +60,7 @@ const method = Schema.Struct({
       Schema.makeFilter((values) => new Set(values).size === values.length),
     ),
   ),
-}).check(
-  Schema.makeFilter(
-    (value) =>
-      value.anonymous !== true ||
-      (value.effect === "read" && value.requires.length === 0),
-    {
-      message: "Anonymous methods must be reads with no required capabilities",
-    },
-  ),
-);
+});
 
 /** The build-generated, digest-covered method and event catalog; it grants no authority. */
 export const appApiSchema: Schema.Codec<AppApi> = Schema.Struct({

@@ -7,7 +7,6 @@ import {
   appBuildJsonSchema,
   appDeclarationSchema,
   createAppBuild,
-  type AppDeclaration,
 } from "../src/app.js";
 import { parseArtifactRef, parseSha256Digest } from "../src/index.js";
 
@@ -54,52 +53,6 @@ describe("digest-covered App API declaration", () => {
     expect(() => decodeApi(presented(""))).toThrow();
     expect(() => decodeApi(presented("x".repeat(33)))).toThrow();
   });
-  test("preserves an anonymous read request in release bytes without inventing approval", () => {
-    const marked: AppDeclaration = {
-      ...declaration,
-      api: {
-        methods: {
-          read: { ...api.methods.read, requires: [], anonymous: true },
-        },
-      },
-    };
-    const encode = Schema.encodeUnknownSync(appBuildJsonSchema);
-    const encoded = encode(createAppBuild(null, backend, marked));
-    expect(
-      Schema.decodeUnknownSync(appBuildJsonSchema)(encoded).declaration?.api,
-    ).toEqual(marked.api);
-    expect(decode(declaration).api?.methods.read).not.toHaveProperty(
-      "anonymous",
-    );
-    expect(decode(marked)).not.toHaveProperty("approvedAnonymous");
-    const privateRead = {
-      ...marked,
-      api: { methods: { read: { ...api.methods.read, requires: [] } } },
-    };
-    expect(encoded).not.toBe(
-      encode(createAppBuild(null, backend, privateRead)),
-    );
-  });
-
-  test("rejects anonymous writes, external calls, required grants and false markers", () => {
-    const cases = [
-      { ...api.methods.read, requires: [], effect: "write", anonymous: true },
-      {
-        ...api.methods.read,
-        requires: [],
-        effect: "external",
-        anonymous: true,
-      },
-      { ...api.methods.read, anonymous: true },
-      { ...api.methods.read, requires: [], anonymous: false },
-    ];
-    for (const method of cases) {
-      expect(() =>
-        decode({ ...declaration, api: { methods: { read: method } } }),
-      ).toThrow();
-    }
-  });
-
   test("pins a declared tool family and refuses invalid discovery references", () => {
     const familyApi = {
       methods: {
@@ -309,6 +262,25 @@ describe("digest-covered App API declaration", () => {
       }),
     ).toThrow();
   });
+
+  test.each(["objects", "arrays"])(
+    "bounds schema defaults nested through %s at depth 16",
+    (containers) => {
+      let value: Schema.Json = null;
+      for (let depth = 0; depth < 15; depth++)
+        value = containers === "objects" ? { child: value } : [value];
+      const withDefault = (fallback: Schema.Json) => ({
+        ...declaration,
+        api: {
+          methods: {
+            read: { ...api.methods.read, input: { default: fallback } },
+          },
+        },
+      });
+      expect(() => decode(withDefault(value))).not.toThrow();
+      expect(() => decode(withDefault({ child: value }))).toThrow(/bound/);
+    },
+  );
 
   test("bounds schema UTF-8 bytes, depth, method count and total metadata", () => {
     const withInput = (input: Schema.Json) => ({

@@ -739,13 +739,40 @@ type AppApi = Readonly<{
       string,
       Readonly<{
         description: string;
-        input: object;
-        output: object;
+        input: {
+          [key: string]:
+            | null
+            | string
+            | number
+            | false
+            | true
+            | {
+                [index: number]: AppApiJsonValue;
+                length: number;
+              }
+            | {
+                [key: string]: AppApiJsonValue;
+              };
+        };
+        output: {
+          [key: string]:
+            | null
+            | string
+            | number
+            | false
+            | true
+            | {
+                [index: number]: AppApiJsonValue;
+                length: number;
+              }
+            | {
+                [key: string]: AppApiJsonValue;
+              };
+        };
         effect: "read" | "write" | "external";
         requires: readonly AppCapabilityId[];
         pending?: true;
         hidden?: true;
-        anonymous?: true;
         present?: Readonly<{
           verb: string;
         }>;
@@ -762,7 +789,21 @@ type AppApi = Readonly<{
       string,
       Readonly<{
         description: string;
-        payload: object;
+        payload: {
+          [key: string]:
+            | null
+            | string
+            | number
+            | false
+            | true
+            | {
+                [index: number]: AppApiJsonValue;
+                length: number;
+              }
+            | {
+                [key: string]: AppApiJsonValue;
+              };
+        };
       }>
     >
   >;

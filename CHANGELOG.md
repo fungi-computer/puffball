@@ -1,5 +1,16 @@
 # @fungi.computer/puffball
 
+## 0.3.0
+
+### Minor Changes
+
+- Changes since 0.2.0:
+
+  - feat(oyster): expose retained Agent schedule controls
+  - fix(forage): retain load-on-request App catalogs on current Integration
+  - fix(oyster)!: remove owner consent for anonymous App methods
+  - feat(workflows): pause schedules and page installation reads
+
 ## 0.2.0
 
 ### Minor Changes
