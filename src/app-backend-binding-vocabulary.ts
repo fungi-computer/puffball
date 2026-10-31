@@ -135,6 +135,11 @@ export const appBackendBindingKinds = {
         requires: ["workflow.run", "workflow.arm"],
         effect: "write",
       },
+      resumeSchedule: {
+        cap: "app.workflow.run",
+        requires: ["workflow.run", "workflow.arm"],
+        effect: "write",
+      },
       schedules: {
         cap: "app.workflow.read",
         requires: ["workflow.run"],
@@ -283,6 +288,11 @@ export const appBackendBindingKinds = {
         effect: "read",
       },
       pauseSchedule: {
+        cap: "agent.manage",
+        requires: ["agent.manage"],
+        effect: "write",
+      },
+      resumeSchedule: {
         cap: "agent.manage",
         requires: ["agent.manage"],
         effect: "write",

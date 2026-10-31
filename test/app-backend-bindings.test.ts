@@ -23,7 +23,7 @@ it("declares independent Agent schedule reads and future-only controls", () => {
     requires: ["agent.read"],
     effect: "read",
   });
-  for (const operation of ["pauseSchedule", "deleteSchedule"])
+  for (const operation of ["pauseSchedule", "resumeSchedule", "deleteSchedule"])
     expect(appBackendBindingOperation("AGENTS", operation)).toEqual({
       cap: "agent.manage",
       requires: ["agent.manage"],
@@ -37,7 +37,12 @@ it("declares independent Agent schedule reads and future-only controls", () => {
       bindings: [
         {
           name: "AGENTS",
-          operations: ["schedules", "pauseSchedule", "deleteSchedule"],
+          operations: [
+            "schedules",
+            "pauseSchedule",
+            "resumeSchedule",
+            "deleteSchedule",
+          ],
         },
       ],
     },
@@ -318,22 +323,25 @@ it("declares only generic graph operations for Workflows", () => {
     ).toThrow();
 });
 
-it("declares schedule pause as a write requiring the same grants as disarm", () => {
-  const pause = [{ name: "WORKFLOWS", operations: ["pauseSchedule"] }];
-  expect(Schema.decodeUnknownSync(appBackendBindingsSchema)(pause)).toEqual(
-    pause,
-  );
-  expect(appBackendBindingOperation("WORKFLOWS", "pauseSchedule")).toEqual({
-    cap: "app.workflow.run",
-    requires: ["workflow.run", "workflow.arm"],
-    effect: "write",
-  });
-  expect(appBackendBindingOperation("WORKFLOWS", "disarmSchedule")).toEqual({
-    cap: "app.workflow.run",
-    requires: ["workflow.run", "workflow.arm"],
-    effect: "write",
-  });
-});
+it.each(["pauseSchedule", "resumeSchedule"])(
+  "declares %s as a write requiring the same grants as disarm",
+  (operation) => {
+    const pause = [{ name: "WORKFLOWS", operations: [operation] }];
+    expect(Schema.decodeUnknownSync(appBackendBindingsSchema)(pause)).toEqual(
+      pause,
+    );
+    expect(appBackendBindingOperation("WORKFLOWS", operation)).toEqual({
+      cap: "app.workflow.run",
+      requires: ["workflow.run", "workflow.arm"],
+      effect: "write",
+    });
+    expect(appBackendBindingOperation("WORKFLOWS", "disarmSchedule")).toEqual({
+      cap: "app.workflow.run",
+      requires: ["workflow.run", "workflow.arm"],
+      effect: "write",
+    });
+  },
+);
 
 it("refuses reserved RPC and lifecycle names for binding operations", () => {
   const parse = Schema.decodeUnknownSync(appApiMethodNameSchema);
