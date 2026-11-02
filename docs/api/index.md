@@ -2618,6 +2618,7 @@ const appCapabilityIds: readonly [
   "computer.execute",
   "llm.generation",
   "media.generation",
+  "media.share",
   "games:servers",
   "git.repository",
   "apps.open",
