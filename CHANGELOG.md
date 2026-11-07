@@ -1,5 +1,14 @@
 # @fungi.computer/puffball
 
+## 0.5.2
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @fungi.computer/gills@0.2.2
+  - @fungi.computer/watchdog@0.1.1
+
 ## 0.5.1
 
 ### Patch Changes
