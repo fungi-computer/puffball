@@ -1,5 +1,12 @@
 # @fungi.computer/puffball
 
+## 0.5.5
+
+### Patch Changes
+
+- Updated dependencies
+  - @fungi.computer/gills@0.3.0
+
 ## 0.5.4
 
 ### Patch Changes

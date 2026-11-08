@@ -1,6 +1,6 @@
 {
   "name": "@fungi.computer/puffball",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "author": "Levi <levi@technomancy.dev>",
   "description": "Immutable App/Release catalog with verified public website delivery",
   "type": "module",
