@@ -1048,6 +1048,7 @@ CREATE TABLE publisher_template_seed_receipts (template_repository TEXT NOT NULL
 CREATE TABLE publisher_artifacts_repositories (repository_name TEXT PRIMARY KEY CHECK(length(repository_name) BETWEEN 1 AND 128), provider_id TEXT NOT NULL CHECK(length(provider_id) > 0), default_branch TEXT NOT NULL CHECK(default_branch = 'main'), remote TEXT NOT NULL CHECK(length(remote) > 0), parent_repository TEXT REFERENCES publisher_artifacts_repositories(repository_name), CHECK(parent_repository IS NULL OR parent_repository <> repository_name)) STRICT;
 CREATE TABLE app_release_boot_results (release_id TEXT NOT NULL REFERENCES app_release_releases(release_id), check_version TEXT NOT NULL CHECK(length(check_version) BETWEEN 1 AND 64), outcome_json TEXT NOT NULL CHECK(json_valid(outcome_json) AND length(outcome_json) <= 65536), checked_at INTEGER NOT NULL, PRIMARY KEY (release_id, check_version)) STRICT;
 CREATE TRIGGER app_release_boot_results_write_once BEFORE UPDATE ON app_release_boot_results BEGIN SELECT RAISE(ABORT, 'App Release boot results are write-once'); END;
+CREATE TABLE app_release_boot_run_claims (release_id TEXT NOT NULL REFERENCES app_release_releases(release_id), check_version TEXT NOT NULL CHECK(length(check_version) BETWEEN 1 AND 64), claim_id TEXT NOT NULL CHECK(length(claim_id) BETWEEN 1 AND 128), cooling_code TEXT CHECK(cooling_code IS NULL OR length(cooling_code) BETWEEN 1 AND 64), expires_at INTEGER NOT NULL, PRIMARY KEY (release_id, check_version)) STRICT;
 CREATE TABLE app_release_boot_capabilities (token_digest TEXT PRIMARY KEY CHECK(length(token_digest) = 64 AND token_digest NOT GLOB '*[^0-9a-f]*'), lease_id TEXT NOT NULL UNIQUE CHECK(length(lease_id) BETWEEN 1 AND 128), release_id TEXT NOT NULL REFERENCES app_release_releases(release_id), lease_json TEXT NOT NULL CHECK(json_valid(lease_json) AND length(lease_json) <= 262144), expires_at INTEGER NOT NULL) STRICT;
 CREATE INDEX app_release_boot_capabilities_expiry_idx ON app_release_boot_capabilities(expires_at);
 CREATE TRIGGER app_release_boot_capabilities_write_once BEFORE UPDATE ON app_release_boot_capabilities BEGIN SELECT RAISE(ABORT, 'Boot capability leases are write-once'); END;
@@ -1297,6 +1298,159 @@ export function createD1ReleaseBootResults(
       return stored;
     },
   };
+}
+
+/** What an ask for a Release's boot-run slot learns. */
+export type ReleaseBootRunClaim =
+  | Readonly<{ kind: "acquired" }>
+  | Readonly<{ kind: "held" }>
+  | Readonly<{ kind: "cooling"; code: string }>
+  /** The catalog predates the slot table: no single-flight is possible. */
+  | Readonly<{ kind: "unavailable" }>;
+
+/**
+ * The single-flight slot for one Release's boot check, shared by every
+ * isolate through the catalog D1. It holds no verdict: only who is running
+ * the check, and for a short cooldown the typed reason an inconclusive run
+ * ended with. The boot gate owns the code vocabulary and parses it on read.
+ */
+export type ReleaseBootRunClaims = Readonly<{
+  /**
+   * One atomic statement: take the slot unless an unexpired claim or
+   * cooldown exists. A claim past `now` is free, so a crashed holder never
+   * blocks the Release.
+   */
+  acquire: (
+    input: ReleaseBootResultKey &
+      Readonly<{ claimId: string; now: number; leaseMs: number }>,
+  ) => Promise<ReleaseBootRunClaim>;
+  /**
+   * End the holder's claim: free the slot, or with `cooling` keep it closed
+   * for `coolMs` carrying the code. Another holder's claim is untouched.
+   */
+  finish: (
+    input: ReleaseBootResultKey &
+      Readonly<{
+        claimId: string;
+        now: number;
+        cooling: Readonly<{ code: string; coolMs: number }> | null;
+      }>,
+  ) => Promise<void>;
+}>;
+
+const bootRunClaimRowSchema = Schema.Struct({
+  claim_id: Schema.String,
+  cooling_code: Schema.NullOr(Schema.String),
+});
+
+/**
+ * The App Release schema is created fresh and never upgraded in place, so a
+ * live catalog can run this code before it has the slot table. A failing
+ * statement counts as that only when the schema really lacks the table;
+ * any other failure stays an error.
+ */
+async function slotTableMissing(
+  database: AppReleaseD1Database,
+): Promise<boolean> {
+  const row = await database
+    .prepare(
+      `SELECT name FROM sqlite_master
+       WHERE type = 'table' AND name = 'app_release_boot_run_claims'`,
+    )
+    .first();
+  return row === null;
+}
+
+/** The boot-run slots over the same App Release D1. */
+export function createD1ReleaseBootRunClaims(
+  database: AppReleaseD1Database,
+): ReleaseBootRunClaims {
+  return {
+    acquire: async (input) => {
+      try {
+        return await acquireSlot(database, input);
+      } catch (cause) {
+        if (await slotTableMissing(database)) return { kind: "unavailable" };
+        throw cause;
+      }
+    },
+    finish: async (input) => {
+      try {
+        await finishSlot(database, input);
+      } catch (cause) {
+        if (!(await slotTableMissing(database))) throw cause;
+      }
+    },
+  };
+}
+
+async function acquireSlot(
+  database: AppReleaseD1Database,
+  input: Parameters<ReleaseBootRunClaims["acquire"]>[0],
+): Promise<ReleaseBootRunClaim> {
+  const releaseId = parseReleaseId(input.releaseId);
+  await database
+    .prepare(
+      `INSERT INTO app_release_boot_run_claims
+             (release_id, check_version, claim_id, cooling_code, expires_at)
+           VALUES (?, ?, ?, NULL, ?)
+           ON CONFLICT (release_id, check_version) DO UPDATE SET
+             claim_id = excluded.claim_id,
+             cooling_code = NULL,
+             expires_at = excluded.expires_at
+           WHERE app_release_boot_run_claims.expires_at <= ?`,
+    )
+    .bind(
+      releaseId,
+      input.checkVersion,
+      input.claimId,
+      input.now + input.leaseMs,
+      input.now,
+    )
+    .run();
+  const row = await database
+    .prepare(
+      `SELECT claim_id, cooling_code FROM app_release_boot_run_claims
+           WHERE release_id = ? AND check_version = ?`,
+    )
+    .bind(releaseId, input.checkVersion)
+    .first();
+  // Deleted by its holder between our write and read: ask again.
+  if (row === null) return { kind: "held" };
+  const decoded = Schema.decodeUnknownSync(bootRunClaimRowSchema)(row);
+  if (decoded.claim_id === input.claimId) return { kind: "acquired" };
+  return decoded.cooling_code === null
+    ? { kind: "held" }
+    : { kind: "cooling", code: decoded.cooling_code };
+}
+
+async function finishSlot(
+  database: AppReleaseD1Database,
+  input: Parameters<ReleaseBootRunClaims["finish"]>[0],
+): Promise<void> {
+  const releaseId = parseReleaseId(input.releaseId);
+  const statement =
+    input.cooling === null
+      ? database
+          .prepare(
+            `DELETE FROM app_release_boot_run_claims
+                 WHERE release_id = ? AND check_version = ? AND claim_id = ?`,
+          )
+          .bind(releaseId, input.checkVersion, input.claimId)
+      : database
+          .prepare(
+            `UPDATE app_release_boot_run_claims
+                 SET cooling_code = ?, expires_at = ?
+                 WHERE release_id = ? AND check_version = ? AND claim_id = ?`,
+          )
+          .bind(
+            input.cooling.code,
+            input.now + input.cooling.coolMs,
+            releaseId,
+            input.checkVersion,
+            input.claimId,
+          );
+  await statement.run();
 }
 
 /** The longest a boot capability lease may live: one boot check plus cleanup. */

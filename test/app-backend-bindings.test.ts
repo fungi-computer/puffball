@@ -67,6 +67,33 @@ it("offers ordinary Computer execution without an App credential operation", () 
   );
 });
 
+it("lets an App backend move a file only with computer.writeFile", () => {
+  expect(appBackendBindingOperation("COMPUTER", "move")).toEqual({
+    cap: "app.computer.write",
+    requires: ["computer.writeFile"],
+    effect: "write",
+  });
+  const declaration = (capabilities: string[]) => ({
+    capabilities,
+    handlers: [],
+    roles: [],
+    backend: { bindings: [{ name: "COMPUTER", operations: ["move"] }] },
+  });
+  expect(() =>
+    Schema.decodeUnknownSync(appDeclarationSchema)(declaration([])),
+  ).toThrow();
+  expect(() =>
+    Schema.decodeUnknownSync(appDeclarationSchema)(
+      declaration(["computer.readFile"]),
+    ),
+  ).toThrow();
+  expect(
+    Schema.decodeUnknownSync(appDeclarationSchema)(
+      declaration(["computer.writeFile"]),
+    ),
+  ).toMatchObject(declaration(["computer.writeFile"]));
+});
+
 it("registers BACKGROUND admission for hosts while refusing App-declared bindings", () => {
   expect(appBackendBindingOperation("BACKGROUND", "admit")).toEqual({
     cap: "app.background.admit",

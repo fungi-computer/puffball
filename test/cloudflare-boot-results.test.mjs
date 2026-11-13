@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import {
   APP_RELEASE_D1_FRESH_SCHEMA,
   createD1ReleaseBootResults,
+  createD1ReleaseBootRunClaims,
 } from "../dist/cloudflare.js";
 
 /**
@@ -106,5 +107,72 @@ describe("release boot results in the global catalog", () => {
         .bind(JSON.stringify(passed), "rel_bootresulta")
         .run(),
     ).rejects.toThrow();
+  });
+});
+
+describe("release boot-run slots in the global catalog", () => {
+  const key = { releaseId: "rel_bootresulta", checkVersion: "boot-run" };
+
+  it("hands the slot to exactly one of many concurrent askers", async () => {
+    const claims = createD1ReleaseBootRunClaims(database());
+    const asks = await Promise.all(
+      Array.from({ length: 20 }, (_, index) =>
+        claims.acquire({
+          ...key,
+          claimId: `c${index}`,
+          now: 1_000,
+          leaseMs: 500,
+        }),
+      ),
+    );
+    expect(asks.filter((ask) => ask.kind === "acquired")).toHaveLength(1);
+    expect(asks.filter((ask) => ask.kind === "held")).toHaveLength(19);
+  });
+
+  it("frees a lapsed lease, and only its holder can end a claim", async () => {
+    const claims = createD1ReleaseBootRunClaims(database());
+    await claims.finish({
+      ...key,
+      claimId: "stranger",
+      now: 1_100,
+      cooling: null,
+    });
+    await expect(
+      claims.acquire({ ...key, claimId: "late", now: 1_100, leaseMs: 500 }),
+    ).resolves.toEqual({ kind: "held" });
+    await expect(
+      claims.acquire({ ...key, claimId: "after", now: 1_500, leaseMs: 500 }),
+    ).resolves.toEqual({ kind: "acquired" });
+  });
+
+  it("shares an inconclusive code during its cooldown, then frees the slot", async () => {
+    const claims = createD1ReleaseBootRunClaims(database());
+    await claims.finish({
+      ...key,
+      claimId: "after",
+      now: 2_000,
+      cooling: { code: "boot_timeout", coolMs: 100 },
+    });
+    await expect(
+      claims.acquire({ ...key, claimId: "next", now: 2_050, leaseMs: 500 }),
+    ).resolves.toEqual({ kind: "cooling", code: "boot_timeout" });
+    await expect(
+      claims.acquire({ ...key, claimId: "next", now: 2_100, leaseMs: 500 }),
+    ).resolves.toEqual({ kind: "acquired" });
+    await claims.finish({ ...key, claimId: "next", now: 2_200, cooling: null });
+    await expect(
+      claims.acquire({ ...key, claimId: "last", now: 2_200, leaseMs: 500 }),
+    ).resolves.toEqual({ kind: "acquired" });
+  });
+
+  it("reports unavailable, not an error, when the catalog predates the table", async () => {
+    await database().prepare("DROP TABLE app_release_boot_run_claims").run();
+    const claims = createD1ReleaseBootRunClaims(database());
+    await expect(
+      claims.acquire({ ...key, claimId: "old", now: 9_000, leaseMs: 500 }),
+    ).resolves.toEqual({ kind: "unavailable" });
+    await expect(
+      claims.finish({ ...key, claimId: "old", now: 9_001, cooling: null }),
+    ).resolves.toBeUndefined();
   });
 });

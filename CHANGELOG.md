@@ -1,5 +1,16 @@
 # @fungi.computer/puffball
 
+## 0.6.0
+
+### Minor Changes
+
+- Changes since 0.5.5:
+
+  - feat(computer): add the files.move operation
+  - fix(hub): run boot checks unguarded when the catalog lacks the slot table
+  - fix(hub): one boot check per App Release across concurrent asks
+  - feat(oyster): give each Agent standing owner instructions, set from Grove
+
 ## 0.5.5
 
 ### Patch Changes

@@ -819,6 +819,45 @@ the UI page check alone, not backend construction.
 
 ---
 
+### ReleaseBootRunClaim
+
+```ts
+type ReleaseBootRunClaim =
+  | Readonly<{
+      kind: "acquired";
+    }>
+  | Readonly<{
+      kind: "held";
+    }>
+  | Readonly<{
+      kind: "cooling";
+      code: string;
+    }>
+  | Readonly<{
+      kind: "unavailable";
+    }>;
+```
+
+What an ask for a Release's boot-run slot learns.
+
+---
+
+### ReleaseBootRunClaims
+
+```ts
+type ReleaseBootRunClaims = Readonly<{
+  acquire: (input) => Promise<ReleaseBootRunClaim>;
+  finish: (input) => Promise<void>;
+}>;
+```
+
+The single-flight slot for one Release's boot check, shared by every isolate
+through the catalog D1. It holds no verdict: only who is running the check, and
+for a short cooldown the typed reason an inconclusive run ended with. The boot
+gate owns the code vocabulary and parses it on read.
+
+---
+
 ### BootCapabilityRows
 
 ```ts
@@ -979,6 +1018,26 @@ The catalog's write-once boot results, over the same App Release D1.
 #### Returns
 
 [`ReleaseBootResults`](#releasebootresults)
+
+---
+
+### createD1ReleaseBootRunClaims()
+
+```ts
+function createD1ReleaseBootRunClaims(database): ReleaseBootRunClaims;
+```
+
+The boot-run slots over the same App Release D1.
+
+#### Parameters
+
+| Parameter  | Type                                            |
+| ---------- | ----------------------------------------------- |
+| `database` | [`AppReleaseD1Database`](#appreleased1database) |
+
+#### Returns
+
+[`ReleaseBootRunClaims`](#releasebootrunclaims)
 
 ---
 
