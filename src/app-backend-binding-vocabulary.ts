@@ -248,6 +248,11 @@ export const appBackendBindingKinds = {
         requires: ["computer.writeFile"],
         effect: "write",
       },
+      mkdir: {
+        cap: "app.computer.write",
+        requires: ["computer.writeFile"],
+        effect: "write",
+      },
       move: {
         cap: "app.computer.write",
         requires: ["computer.writeFile"],

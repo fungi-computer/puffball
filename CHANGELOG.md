@@ -1,5 +1,14 @@
 # @fungi.computer/puffball
 
+## 0.7.0
+
+### Minor Changes
+
+- Changes since 0.6.0:
+
+  - feat(apps): let App backends create folders on the Computer (COMPUTER.mkdir)
+  - fix(hub): keep App Computer mkdir beside move after merging integration
+
 ## 0.6.0
 
 ### Minor Changes
