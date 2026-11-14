@@ -1,5 +1,13 @@
 # @fungi.computer/puffball
 
+## 0.8.0
+
+### Minor Changes
+
+- Changes since 0.7.0:
+
+  - feat(inkcap): review everything the Agent changed in one Changes view
+
 ## 0.7.0
 
 ### Minor Changes

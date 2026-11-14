@@ -243,6 +243,11 @@ export const appBackendBindingKinds = {
         requires: ["computer.execute"],
         effect: "read",
       },
+      gitChanges: {
+        cap: "app.computer.read",
+        requires: ["computer.readFile"],
+        effect: "read",
+      },
       write: {
         cap: "app.computer.write",
         requires: ["computer.writeFile"],
