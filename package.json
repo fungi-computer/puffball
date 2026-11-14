@@ -107,31 +107,20 @@
     "LICENSE"
   ],
   "scripts": {
-    "lint": "eslint --global URL --global TextEncoder src test examples --max-warnings=0 && ../../node_modules/.bin/oxlint --config ../../oxlint.config.ts --deny-warnings src test examples",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "pnpm run clean && tsc -p tsconfig.build.json",
     "clean": "node --input-type=module --eval \"import { rm } from 'node:fs/promises'; await rm('dist', { recursive: true, force: true });\"",
-    "test": "vitest run --config vitest.node.config.ts && vitest run --config vitest.cloudflare.config.ts && vitest run --config vitest.cloudflare.restart.config.ts && vitest run --config vitest.cloudflare.transition.config.ts && vitest run --config vitest.cloudflare.transition-storage.config.ts && vitest run --config vitest.cloudflare.transition-lifecycle.config.ts && vitest run --config vitest.cloudflare.transition-idempotency.config.ts && vitest run --config vitest.cloudflare.a1-2.config.ts && vitest run --config vitest.cloudflare.public-routes.config.ts",
-    "test:cloudflare": "../../node_modules/.bin/vitest run --config vitest.cloudflare.config.ts && ../../node_modules/.bin/vitest run --config vitest.cloudflare.restart.config.ts && ../../node_modules/.bin/vitest run --config vitest.cloudflare.transition.config.ts && ../../node_modules/.bin/vitest run --config vitest.cloudflare.transition-storage.config.ts && ../../node_modules/.bin/vitest run --config vitest.cloudflare.transition-lifecycle.config.ts && ../../node_modules/.bin/vitest run --config vitest.cloudflare.transition-idempotency.config.ts && ../../node_modules/.bin/vitest run --config vitest.cloudflare.a1-2.config.ts && ../../node_modules/.bin/vitest run --config vitest.cloudflare.public-routes.config.ts",
-    "docs": "tsx ../../tooling/repository/src/docs/cli.ts check --root ../..",
-    "docs:write": "tsx ../../tooling/repository/src/docs/cli.ts write --root ../..",
-    "pack": "mkdir -p ../../.botanical/puffball-pack && pnpm pack --pack-destination ../../.botanical/puffball-pack",
     "smoke": "node --input-type=module -e \"import('./dist/index.js').then(({createAppReleaseCatalog}) => { if (typeof createAppReleaseCatalog !== 'function') process.exit(1); })\"",
-    "stranger": "tsx ../../tooling/repository/src/artifacts/cli.ts --repo-root ../.. .",
     "demo:a1.2": "node --import tsx examples/a1-2-public-website.ts",
-    "demo:a1.2:self-check": "node --import tsx examples/a1-2-public-website.ts --self-check",
-    "format:check": "node ../../tooling/repository/scripts/format-package-check.mjs",
-    "lint:anti-slop": "node ../../tooling/repository/scripts/lint-package-anti-slop.mjs",
-    "test:unit": "../../node_modules/.bin/vitest run --config vitest.node.config.ts",
-    "test:merge": "pnpm run test:cloudflare"
+    "demo:a1.2:self-check": "node --import tsx examples/a1-2-public-website.ts --self-check"
   },
   "dependencies": {
-    "@fungi.computer/cairn": "workspace:*",
+    "@fungi.computer/cairn": "0.1.0",
     "effect": "4.0.2",
-    "@fungi.computer/cloudflare-worker-bundler": "workspace:*",
+    "@fungi.computer/cloudflare-worker-bundler": "0.2.3-fungi.0",
     "zod": "4.4.3",
-    "@fungi.computer/watchdog": "workspace:*",
-    "@fungi.computer/gills": "workspace:*"
+    "@fungi.computer/watchdog": "0.1.3",
+    "@fungi.computer/gills": "0.3.0"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "1.1.2",
