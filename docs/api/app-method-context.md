@@ -34,7 +34,7 @@ const appMethodCallContextSchema: declareConstructor<
       method: string;
       seal: string;
     };
-    role?: "member" | "owner";
+    role?: "member" | "owner" | "admin";
     soleMember?: true;
     workflow?: {
       workflowId: string;
@@ -76,7 +76,7 @@ const appMethodCallContextSchema: declareConstructor<
       method: string;
       seal: string;
     };
-    role?: "member" | "owner";
+    role?: "member" | "owner" | "admin";
     soleMember?: true;
     workflow?: {
       workflowId: string;
@@ -119,7 +119,7 @@ const appMethodCallContextSchema: declareConstructor<
       method: string;
       seal: string;
     };
-    role?: "member" | "owner";
+    role?: "member" | "owner" | "admin";
     soleMember?: true;
     workflow?: {
       workflowId: string;

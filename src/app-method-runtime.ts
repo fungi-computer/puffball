@@ -1,3 +1,4 @@
+import { teamRoleSchema } from "@fungi.computer/cairn/team-role";
 export { backgroundSyncAllowed } from "./internal/background-sync.js";
 import * as z from "zod/mini";
 
@@ -78,7 +79,7 @@ export const appMethodCallerSchema = z.object({
   /** Host-sealed foreground method for durable jobs; paired with backgroundLane. */
   backgroundOrigin: z.optional(backgroundOrigin),
   /** Team role attested by the host, never selected by App method input. */
-  role: z.optional(z.enum(["owner", "member"])),
+  role: z.optional(teamRoleSchema),
   /**
    * The host attests that this member is currently the Team's only member.
    * Present only on a member's own call; never on an Agent, Team key or

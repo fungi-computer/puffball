@@ -203,10 +203,11 @@ const appMethodCallerSchema: ZodMiniObject<
       >
     >;
     role: ZodMiniOptional<
-      ZodMiniEnum<{
-        member: "member";
-        owner: "owner";
-      }>
+      ZodType<
+        "member" | "owner" | "admin",
+        unknown,
+        $ZodTypeInternals<"member" | "owner" | "admin", unknown>
+      >
     >;
     soleMember: ZodMiniOptional<ZodMiniLiteral<true>>;
     workflow: ZodMiniOptional<
@@ -280,7 +281,7 @@ Decode trusted host attribution through the sole runtime-neutral grammar.
 | `backgroundOrigin?`       | `object`                                                                                                                                              | -                 | Host-sealed foreground method for durable jobs; paired with backgroundLane.                                                                                                                                               |
 | `backgroundOrigin.method` | `string`                                                                                                                                              | -                 | -                                                                                                                                                                                                                         |
 | `backgroundOrigin.seal`   | `string`                                                                                                                                              | -                 | -                                                                                                                                                                                                                         |
-| `role?`                   | `"member"` \| `"owner"`                                                                                                                               | -                 | Team role attested by the host, never selected by App method input.                                                                                                                                                       |
+| `role?`                   | `"member"` \| `"owner"` \| `"admin"`                                                                                                                  | -                 | Team role attested by the host, never selected by App method input.                                                                                                                                                       |
 | `soleMember?`             | `true`                                                                                                                                                | -                 | The host attests that this member is currently the Team's only member. Present only on a member's own call; never on an Agent, Team key or Workflow node, and never selected by App method input.                         |
 | `workflow?`               | `object`                                                                                                                                              | -                 | Present only on a Workflow node invocation admitted by its host.                                                                                                                                                          |
 | `workflow.workflowId`     | `string`                                                                                                                                              | `identity`        | Published Workflow selected by the run owner.                                                                                                                                                                             |

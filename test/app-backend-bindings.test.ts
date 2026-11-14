@@ -197,7 +197,7 @@ it("both caller ports refuse malformed host role and Workflow attribution", () =
     armedBy: caller.actor,
   };
   for (const attribution of [
-    { role: "admin" },
+    { role: "superuser" },
     { role: null },
     { workflow: null },
     { workflow: { ...workflow, workflowId: "" } },
@@ -211,6 +211,15 @@ it("both caller ports refuse malformed host role and Workflow attribution", () =
     expect(() =>
       Schema.decodeUnknownSync(appMethodCallContextSchema)(input),
     ).toThrow();
+  }
+  for (const role of ["owner", "admin", "member"] as const) {
+    expect(parseAppMethodCallContext({ ...caller, role })).toEqual({
+      ...caller,
+      role,
+    });
+    expect(
+      Schema.decodeUnknownSync(appMethodCallContextSchema)({ ...caller, role }),
+    ).toEqual({ ...caller, role });
   }
   const input = {
     ...caller,
