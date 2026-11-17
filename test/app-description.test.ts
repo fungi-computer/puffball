@@ -5,10 +5,12 @@ import { describe, expect, it } from "vitest";
 import {
   appBuildJsonSchema,
   appMediaType,
+  appDeclarationSchema,
   createAppBuild,
   emptyAppDeclaration,
   isEmptyAppDeclaration,
 } from "../src/app.js";
+import { verifiedAppDescriptionSchema } from "../src/internal/app-release-schema.js";
 import { backendMediaType } from "../src/backend.js";
 import { createDeterministicMemoryAppReleaseStore } from "../src/effect.js";
 import {
@@ -134,7 +136,9 @@ describe("one App Release", () => {
         capabilities: [],
         handlers: [],
         roles: [],
-        gills: [{ id: "inbox", source: "listInbox", title: "Inbox" }],
+        gills: [
+          { view: "rows", id: "inbox", source: "listInbox", title: "Inbox" },
+        ],
       }),
     ).toBe(false);
   });
@@ -156,6 +160,7 @@ describe("one App Release", () => {
         }),
       );
     const inbox = {
+      view: "rows",
       id: "inbox",
       source: "listInbox",
       title: "Inbox",
@@ -205,6 +210,151 @@ describe("one App Release", () => {
     }));
     expect(decode(gills)).toMatchObject({ declaration: { gills } });
     expect(() => decode([...gills, { ...inbox, id: "extra" }])).toThrow();
+  });
+
+  it("decodes a stored root written before views existed as rows, leaving its bytes and digest alone", () => {
+    const backend = {
+      artifactRef: "artifact:api.backend",
+      digest: `sha256:${"a".repeat(64)}`,
+      version: "backend-v1",
+      byteLength: 1,
+      mediaType: backendMediaType,
+    } as const;
+    const oldGill = {
+      id: "inbox",
+      source: "listInbox",
+      title: "Inbox",
+      desktop: { sizes: ["S", "M"] },
+    };
+    const oldRoot = JSON.stringify({
+      format: "fungi-app-v1",
+      backend,
+      declaration: {
+        capabilities: [],
+        handlers: [],
+        roles: [],
+        gills: [oldGill],
+      },
+    });
+    const before = digest(new TextEncoder().encode(oldRoot));
+    expect(
+      Schema.decodeUnknownSync(appBuildJsonSchema)(oldRoot, {
+        onExcessProperty: "error",
+      }),
+    ).toMatchObject({
+      declaration: { gills: [{ ...oldGill, view: "rows" }] },
+    });
+    expect(digest(new TextEncoder().encode(oldRoot))).toBe(before);
+    // Re-encoding names the view, so only newly written roots carry it.
+    const decoded = Schema.decodeUnknownSync(appBuildJsonSchema)(oldRoot);
+    expect(
+      JSON.parse(Schema.encodeSync(appBuildJsonSchema)(decoded)),
+    ).toMatchObject({
+      declaration: { gills: [{ view: "rows" }] },
+    });
+    // A bad view is still refused.
+    expect(() =>
+      Schema.decodeUnknownSync(appBuildJsonSchema)(
+        oldRoot.replace('"id":"inbox"', '"view":"grid","id":"inbox"'),
+      ),
+    ).toThrow();
+  });
+
+  it("decodes persisted verified metadata that predates views, while authoring requires one", () => {
+    const oldGill = { id: "inbox", source: "listInbox", title: "Inbox" };
+    const stored = {
+      format: "fungi-app-v1",
+      ui: null,
+      backend: null,
+      declaration: {
+        capabilities: [],
+        handlers: [],
+        roles: [],
+        gills: [oldGill],
+      },
+    };
+    expect(
+      Schema.decodeUnknownSync(verifiedAppDescriptionSchema)(stored),
+    ).toMatchObject({
+      declaration: { gills: [{ ...oldGill, view: "rows" }] },
+    });
+    // New declarations are a clean break: an omitted view is an error.
+    expect(() =>
+      Schema.decodeUnknownSync(appDeclarationSchema)(stored.declaration),
+    ).toThrow();
+  });
+
+  it("verifies and resolves an installed Release whose stored root predates Gill views", async () => {
+    const backend = encode({
+      runtime: { kind: "durable-facet", stateSchema: 1 },
+      compatibilityDate: "2026-09-18",
+      exportName: "NotesFacet",
+      code: "export class NotesFacet {}",
+    });
+    const root = encode({
+      format: "fungi-app-v1",
+      backend: {
+        artifactRef: "artifact:old.backend",
+        digest: digest(backend),
+        version: "backend-v1",
+        byteLength: backend.byteLength,
+        mediaType: backendMediaType,
+      },
+      declaration: {
+        capabilities: [],
+        handlers: [],
+        roles: [],
+        gills: [{ id: "inbox", source: "listInbox", title: "Inbox" }],
+      },
+    });
+    const objects = new Map([
+      ["artifact:old.root", { bytes: root, mediaType: appMediaType }],
+      ["artifact:old.backend", { bytes: backend, mediaType: backendMediaType }],
+    ]);
+    const artifactReader: ArtifactReader = {
+      read: (input) => {
+        const object = objects.get(input.artifactRef);
+        if (object === undefined) return Promise.resolve({ kind: "missing" });
+        return Promise.resolve({
+          kind: "verified" as const,
+          digest: digest(object.bytes),
+          mediaType: object.mediaType,
+          byteLength: object.bytes.byteLength,
+          bytes: {
+            byteLength: object.bytes.byteLength,
+            copy: () => object.bytes.slice(),
+          },
+        });
+      },
+    };
+    const app = { appId: parseAppId("app_old") };
+    const release: Release = {
+      appId: app.appId,
+      releaseId: parseReleaseId("rel_old1"),
+      artifact: {
+        artifactRef: parseArtifactRef("artifact:old.root"),
+        artifactDigest: digest(root),
+        provenance: {
+          sourceRevision: parseSourceRevision(`git:${"a".repeat(40)}`),
+          sourceTreeDigest: digest(new TextEncoder().encode("tree")),
+          buildRecipeDigest: digest(new TextEncoder().encode("recipe")),
+        },
+      },
+    };
+    const catalog = createAppReleaseCatalog({
+      artifactReader,
+      store: createDeterministicMemoryAppReleaseStore(),
+    });
+    await catalog.createApp(app);
+    await catalog.createRelease(release);
+    await catalog.verifyReleaseArtifact(release.releaseId);
+    const metadata = await catalog.resolveEligibleAppMetadata(
+      release.releaseId,
+    );
+    expect(metadata.digest).toBe(digest(root));
+    expect(metadata.description.declaration.gills).toEqual([
+      { id: "inbox", view: "rows", source: "listInbox", title: "Inbox" },
+    ]);
   });
 
   it("declares a Whistle command catalog the backend can advertise", () => {

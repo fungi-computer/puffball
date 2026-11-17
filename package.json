@@ -1,6 +1,6 @@
 {
   "name": "@fungi.computer/puffball",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "author": "Levi <levi@technomancy.dev>",
   "description": "Immutable App/Release catalog with verified public website delivery",
   "type": "module",
@@ -120,7 +120,7 @@
     "@fungi.computer/cloudflare-worker-bundler": "0.2.3-fungi.0",
     "zod": "4.4.3",
     "@fungi.computer/watchdog": "0.1.4",
-    "@fungi.computer/gills": "0.3.0"
+    "@fungi.computer/gills": "0.4.0"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "1.1.2",

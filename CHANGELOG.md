@@ -1,5 +1,20 @@
 # @fungi.computer/puffball
 
+## 0.11.0
+
+### Minor Changes
+
+- Changes since 0.10.0:
+
+  - fix(puffball): name the stored declaration's encoded shape inline
+  - fix(gills): decode stored Releases that predate Gill views as rows
+  - feat(gills): declare surface Gills beside row Gills
+
+### Patch Changes
+
+- Updated dependencies
+  - @fungi.computer/gills@0.4.0
+
 ## 0.10.0
 
 ### Minor Changes

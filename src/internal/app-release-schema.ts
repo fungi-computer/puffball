@@ -1,6 +1,6 @@
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
-import { appDeclarationSchema } from "../app-declaration.js";
+import { storedAppDeclarationSchema } from "../app-declaration.js";
 import { emptyAppDeclaration } from "../app-vocabulary.js";
 import { defineIdFamily } from "@fungi.computer/cairn/id";
 
@@ -205,7 +205,7 @@ export const verifiedAppDescriptionSchema = Schema.Struct({
     }),
   ),
   // Metadata verified before declarations existed requested nothing.
-  declaration: appDeclarationSchema.pipe(
+  declaration: storedAppDeclarationSchema.pipe(
     Schema.withDecodingDefaultType(Effect.succeed(emptyAppDeclaration)),
   ),
 });

@@ -24,7 +24,7 @@ export {
   appApiMethodNameSchema,
 } from "./app-api.js";
 export type { AppApi } from "./app-vocabulary.js";
-import { appDeclarationSchema } from "./app-declaration.js";
+import { storedAppDeclarationSchema } from "./app-declaration.js";
 import {
   isEmptyAppDeclaration,
   type AppDeclaration,
@@ -63,7 +63,7 @@ const appBackendBuildSchema = Schema.Struct({
 
 /** Omitted when the App requests nothing, so older roots stay valid. */
 const declaration = {
-  declaration: Schema.optionalKey(appDeclarationSchema),
+  declaration: Schema.optionalKey(storedAppDeclarationSchema),
 };
 
 /**

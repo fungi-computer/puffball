@@ -1,6 +1,8 @@
 import {
   appDeclaredGillSchema,
+  appStoredGillSchema,
   type AppDeclaredGill,
+  type AppStoredGillEncoded,
 } from "@fungi.computer/gills";
 import {
   appBackendBindingsSchema,
@@ -185,9 +187,11 @@ export const appCallsSchema = Schema.Array(appCallSchema).check(
   ),
 );
 
-/** Boundary codec for the digest-covered {@link AppDeclaration}. */
-export const appDeclarationSchema: Schema.Codec<AppDeclaration> = Schema.Struct(
-  {
+/** The declaration grammar, parameterized only by how one Gill decodes. */
+const declarationSchemaFor = <G extends Schema.Top & { Type: AppDeclaredGill }>(
+  gill: G,
+) =>
+  Schema.Struct({
     api: Schema.optionalKey(appApiSchema),
     displayName: Schema.optional(
       Schema.String.pipe(
@@ -243,7 +247,7 @@ export const appDeclarationSchema: Schema.Codec<AppDeclaration> = Schema.Struct(
       ),
     ),
     gills: Schema.optional(
-      Schema.Array(appDeclaredGillSchema).pipe(
+      Schema.Array(gill).pipe(
         Schema.check(Schema.isMaxLength(16)),
         Schema.check(
           Schema.makeFilter(gillsAreUnique, {
@@ -260,75 +264,93 @@ export const appDeclarationSchema: Schema.Codec<AppDeclaration> = Schema.Struct(
         ),
       }),
     ),
-  },
-).pipe(
-  Schema.check(
-    Schema.makeFilter(
-      (declaration) =>
-        declaration.calls === undefined ||
-        declaration.capabilities.includes("apps.call"),
-      { message: "App calls require apps.call" },
+  }).pipe(
+    Schema.check(
+      Schema.makeFilter(
+        (declaration) =>
+          declaration.calls === undefined ||
+          declaration.capabilities.includes("apps.call"),
+        { message: "App calls require apps.call" },
+      ),
     ),
-  ),
-  Schema.check(
-    Schema.makeFilter(
-      (declaration) =>
-        declaration.backend?.bindings.every(
-          (binding) => binding.name !== "BACKGROUND",
-        ) ?? true,
-      { message: "BACKGROUND is host-minted and cannot be declared by an App" },
+    Schema.check(
+      Schema.makeFilter(
+        (declaration) =>
+          declaration.backend?.bindings.every(
+            (binding) => binding.name !== "BACKGROUND",
+          ) ?? true,
+        {
+          message: "BACKGROUND is host-minted and cannot be declared by an App",
+        },
+      ),
     ),
-  ),
-  Schema.check(
-    Schema.makeFilter(
-      (declaration) =>
-        backgroundSyncAllowed(declaration.api, declaration.backend?.sync),
-      {
-        message:
-          "Background continuation must be a declared write covering all write requirements",
-      },
+    Schema.check(
+      Schema.makeFilter(
+        (declaration) =>
+          backgroundSyncAllowed(declaration.api, declaration.backend?.sync),
+        {
+          message:
+            "Background continuation must be a declared write covering all write requirements",
+        },
+      ),
     ),
-  ),
-  Schema.check(
-    Schema.makeFilter(
-      (declaration) =>
-        !(declaration.receives?.includes("git.push") ?? false) ||
-        declaration.capabilities.includes("git.repository"),
-      { message: "Git push reception requires git.repository" },
+    Schema.check(
+      Schema.makeFilter(
+        (declaration) =>
+          !(declaration.receives?.includes("git.push") ?? false) ||
+          declaration.capabilities.includes("git.repository"),
+        { message: "Git push reception requires git.repository" },
+      ),
     ),
-  ),
-  Schema.check(
-    Schema.makeFilter(
-      (declaration) =>
-        declaration.backend?.bindings.every((binding) =>
-          binding.operations.every(
-            (name) =>
-              appBackendBindingOperation(binding.name, name)?.requires.every(
-                (capability) => declaration.capabilities.includes(capability),
-              ) === true,
+    Schema.check(
+      Schema.makeFilter(
+        (declaration) =>
+          declaration.backend?.bindings.every((binding) =>
+            binding.operations.every(
+              (name) =>
+                appBackendBindingOperation(binding.name, name)?.requires.every(
+                  (capability) => declaration.capabilities.includes(capability),
+                ) === true,
+            ),
+          ) ?? true,
+        { message: "Backend bindings require declared App capabilities" },
+      ),
+    ),
+    Schema.check(
+      Schema.makeFilter(
+        (declaration) =>
+          !declaration.backend?.bindings.some(
+            (binding) => binding.name === "APP_STORAGE",
+          ) || (declaration.storage?.length ?? 0) > 0,
+        { message: "App storage bindings require declared keys" },
+      ),
+    ),
+    Schema.check(
+      Schema.makeFilter(
+        (declaration) =>
+          Object.values(declaration.api?.methods ?? {}).every((method) =>
+            method.requires.every((capability) =>
+              declaration.capabilities.includes(capability),
+            ),
           ),
-        ) ?? true,
-      { message: "Backend bindings require declared App capabilities" },
+        {
+          message: "App API requires capabilities outside the App declaration",
+        },
+      ),
     ),
-  ),
-  Schema.check(
-    Schema.makeFilter(
-      (declaration) =>
-        !declaration.backend?.bindings.some(
-          (binding) => binding.name === "APP_STORAGE",
-        ) || (declaration.storage?.length ?? 0) > 0,
-      { message: "App storage bindings require declared keys" },
-    ),
-  ),
-  Schema.check(
-    Schema.makeFilter(
-      (declaration) =>
-        Object.values(declaration.api?.methods ?? {}).every((method) =>
-          method.requires.every((capability) =>
-            declaration.capabilities.includes(capability),
-          ),
-        ),
-      { message: "App API requires capabilities outside the App declaration" },
-    ),
-  ),
-);
+  );
+
+/** Boundary codec for the digest-covered {@link AppDeclaration}; Gills require `view`. */
+export const appDeclarationSchema: Schema.Codec<AppDeclaration> =
+  declarationSchemaFor(appDeclaredGillSchema);
+
+/**
+ * Boundary codec for a declaration read from an immutable stored Release root or
+ * its verified description. Gills published before surfaces existed omit
+ * `view` and decode as rows; every other rule is {@link appDeclarationSchema}'s.
+ */
+export const storedAppDeclarationSchema: Schema.Codec<
+  AppDeclaration,
+  Omit<AppDeclaration, "gills"> &
+    Readonly<{ gills?: readonly AppStoredGillEncoded[] | undefined }>
+> = declarationSchemaFor(appStoredGillSchema);
