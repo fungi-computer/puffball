@@ -1,5 +1,12 @@
 # @fungi.computer/puffball
 
+## 0.9.1
+
+### Patch Changes
+
+- Updated dependencies
+  - @fungi.computer/watchdog@0.1.4
+
 ## 0.9.0
 
 ### Minor Changes
