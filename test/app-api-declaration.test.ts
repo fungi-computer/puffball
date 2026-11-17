@@ -9,6 +9,42 @@ import {
   createAppBuild,
 } from "../src/app.js";
 import { parseArtifactRef, parseSha256Digest } from "../src/index.js";
+import { parseAppMethodCallContext } from "../src/app-method-runtime.js";
+
+test("App caller attribution requires one host scope", () => {
+  const caller = {
+    computerId: null,
+    actor: { kind: "member", memberId: "member_one" },
+  };
+  expect(() => parseAppMethodCallContext(caller)).toThrow();
+  for (const scope of [
+    { kind: "team", teamId: "team_one" },
+    { kind: "standalone", tenant: "garden" },
+  ]) {
+    expect(parseAppMethodCallContext({ ...caller, scope })).toEqual({
+      ...caller,
+      scope,
+    });
+  }
+});
+
+test.each([
+  null,
+  {},
+  { kind: "team", teamId: "" },
+  { kind: "standalone", tenant: "" },
+  { kind: "team", teamId: "team_one", tenant: "garden" },
+  { kind: "standalone", tenant: "garden", teamId: "team_one" },
+  { kind: "app", tenant: "garden" },
+])("App caller attribution refuses an invalid or mixed scope: %j", (scope) => {
+  expect(() =>
+    parseAppMethodCallContext({
+      computerId: null,
+      actor: { kind: "member", memberId: "member_one" },
+      scope,
+    }),
+  ).toThrow();
+});
 
 const api = {
   methods: {

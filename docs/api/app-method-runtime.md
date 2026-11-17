@@ -10,6 +10,16 @@
 
 ## Type Aliases
 
+### AppCallerScope
+
+```ts
+type AppCallerScope = z.output<typeof appCallerScopeSchema>;
+```
+
+One host-derived scope shared by caller attribution and Instance admission.
+
+---
+
 ### HostActor
 
 ```ts
@@ -77,6 +87,34 @@ const appApiReservedMethodNames: Readonly<{
 ```
 
 Reserved JavaScript, RPC and lifecycle names are never App method names.
+
+---
+
+### appCallerScopeSchema
+
+```ts
+const appCallerScopeSchema: ZodMiniDiscriminatedUnion<
+  [
+    ZodMiniObject<
+      {
+        kind: ZodMiniLiteral<"team">;
+        teamId: ZodMiniString<string>;
+      },
+      $strict
+    >,
+    ZodMiniObject<
+      {
+        kind: ZodMiniLiteral<"standalone">;
+        tenant: ZodMiniString<string>;
+      },
+      $strict
+    >,
+  ],
+  "kind"
+>;
+```
+
+The admitting host's scope, never selected by App input or browser headers.
 
 ---
 
@@ -163,6 +201,25 @@ Host-held Workflow attribution, delivered separately from guest input.
 ```ts
 const appMethodCallerSchema: ZodMiniObject<
   {
+    scope: ZodMiniDiscriminatedUnion<
+      [
+        ZodMiniObject<
+          {
+            kind: ZodMiniLiteral<"team">;
+            teamId: ZodMiniString<string>;
+          },
+          $strict
+        >,
+        ZodMiniObject<
+          {
+            kind: ZodMiniLiteral<"standalone">;
+            tenant: ZodMiniString<string>;
+          },
+          $strict
+        >,
+      ],
+      "kind"
+    >;
     computerId: ZodMiniNullable<ZodMiniString<string>>;
     actor: ZodMiniDiscriminatedUnion<
       [
@@ -273,22 +330,23 @@ Decode trusted host attribution through the sole runtime-neutral grammar.
 
 #### Returns
 
-| Name                      | Type                                                                                                                                                  | Default value     | Description                                                                                                                                                                                                               |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `computerId`              | `string` \| `null`                                                                                                                                    | -                 | -                                                                                                                                                                                                                         |
-| `actor`                   | \| \{ `kind`: `"member"`; `memberId`: `string`; \} \| \{ `kind`: `"agent"`; `agentId`: `string`; \} \| \{ `kind`: `"team-key"`; `keyId`: `string`; \} | `hostActorSchema` | -                                                                                                                                                                                                                         |
-| `backgroundLane?`         | `string`                                                                                                                                              | -                 | Host-attested enqueue eligibility for this ordinary write; absent otherwise.                                                                                                                                              |
-| `backgroundOrigin?`       | `object`                                                                                                                                              | -                 | Host-sealed foreground method for durable jobs; paired with backgroundLane.                                                                                                                                               |
-| `backgroundOrigin.method` | `string`                                                                                                                                              | -                 | -                                                                                                                                                                                                                         |
-| `backgroundOrigin.seal`   | `string`                                                                                                                                              | -                 | -                                                                                                                                                                                                                         |
-| `role?`                   | `"member"` \| `"owner"` \| `"admin"`                                                                                                                  | -                 | Team role attested by the host, never selected by App method input.                                                                                                                                                       |
-| `soleMember?`             | `true`                                                                                                                                                | -                 | The host attests that this member is currently the Team's only member. Present only on a member's own call; never on an Agent, Team key or Workflow node, and never selected by App method input.                         |
-| `workflow?`               | `object`                                                                                                                                              | -                 | Present only on a Workflow node invocation admitted by its host.                                                                                                                                                          |
-| `workflow.workflowId`     | `string`                                                                                                                                              | `identity`        | Published Workflow selected by the run owner.                                                                                                                                                                             |
-| `workflow.runId`          | `string`                                                                                                                                              | `identity`        | Run identity held by the run owner.                                                                                                                                                                                       |
-| `workflow.nodeId`         | `string`                                                                                                                                              | `identity`        | Node selected by the stored published Workflow.                                                                                                                                                                           |
-| `workflow.armedBy`        | \| \{ `kind`: `"member"`; `memberId`: `string`; \} \| \{ `kind`: `"agent"`; `agentId`: `string`; \} \| \{ `kind`: `"team-key"`; `keyId`: `string`; \} | `hostActorSchema` | Actor that armed the run, re-admitted by the host at dispatch.                                                                                                                                                            |
-| `idempotencyKey?`         | `string`                                                                                                                                              | -                 | The host's stable key for this logical call (for example one Workflow node), the same on every retry. A method with side effects uses it to do its work at most once. Absent when the caller supplies its own request id. |
+| Name                      | Type                                                                                                                                                  | Default value          | Description                                                                                                                                                                                                               |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scope`                   | \| \{ `kind`: `"team"`; `teamId`: `string`; \} \| \{ `kind`: `"standalone"`; `tenant`: `string`; \}                                                   | `appCallerScopeSchema` | -                                                                                                                                                                                                                         |
+| `computerId`              | `string` \| `null`                                                                                                                                    | -                      | -                                                                                                                                                                                                                         |
+| `actor`                   | \| \{ `kind`: `"member"`; `memberId`: `string`; \} \| \{ `kind`: `"agent"`; `agentId`: `string`; \} \| \{ `kind`: `"team-key"`; `keyId`: `string`; \} | `hostActorSchema`      | -                                                                                                                                                                                                                         |
+| `backgroundLane?`         | `string`                                                                                                                                              | -                      | Host-attested enqueue eligibility for this ordinary write; absent otherwise.                                                                                                                                              |
+| `backgroundOrigin?`       | `object`                                                                                                                                              | -                      | Host-sealed foreground method for durable jobs; paired with backgroundLane.                                                                                                                                               |
+| `backgroundOrigin.method` | `string`                                                                                                                                              | -                      | -                                                                                                                                                                                                                         |
+| `backgroundOrigin.seal`   | `string`                                                                                                                                              | -                      | -                                                                                                                                                                                                                         |
+| `role?`                   | `"member"` \| `"owner"` \| `"admin"`                                                                                                                  | -                      | Team role attested by the host, never selected by App method input.                                                                                                                                                       |
+| `soleMember?`             | `true`                                                                                                                                                | -                      | The host attests that this member is currently the Team's only member. Present only on a member's own call; never on an Agent, Team key or Workflow node, and never selected by App method input.                         |
+| `workflow?`               | `object`                                                                                                                                              | -                      | Present only on a Workflow node invocation admitted by its host.                                                                                                                                                          |
+| `workflow.workflowId`     | `string`                                                                                                                                              | `identity`             | Published Workflow selected by the run owner.                                                                                                                                                                             |
+| `workflow.runId`          | `string`                                                                                                                                              | `identity`             | Run identity held by the run owner.                                                                                                                                                                                       |
+| `workflow.nodeId`         | `string`                                                                                                                                              | `identity`             | Node selected by the stored published Workflow.                                                                                                                                                                           |
+| `workflow.armedBy`        | \| \{ `kind`: `"member"`; `memberId`: `string`; \} \| \{ `kind`: `"agent"`; `agentId`: `string`; \} \| \{ `kind`: `"team-key"`; `keyId`: `string`; \} | `hostActorSchema`      | Actor that armed the run, re-admitted by the host at dispatch.                                                                                                                                                            |
+| `idempotencyKey?`         | `string`                                                                                                                                              | -                      | The host's stable key for this logical call (for example one Workflow node), the same on every retry. A method with side effects uses it to do its work at most once. Absent when the caller supplies its own request id. |
 
 ---
 

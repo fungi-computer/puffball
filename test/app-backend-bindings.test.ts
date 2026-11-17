@@ -17,6 +17,8 @@ import {
   appDeclarationSchema,
 } from "../src/app.js";
 
+const scope = { kind: "team", teamId: "team_one" } as const;
+
 it("declares independent Agent schedule reads and future-only controls", () => {
   expect(appBackendBindingOperation("AGENTS", "schedules")).toEqual({
     cap: "agent.read",
@@ -145,6 +147,7 @@ it("declares independent Workflow publish and arm permissions in the signed API"
 
 it("preserves the host's role and Workflow arming actor through both caller ports", () => {
   const caller = {
+    scope,
     computerId: "computer-build",
     actor: { kind: "member", memberId: "owner-one" },
     role: "owner",
@@ -168,6 +171,7 @@ it.each([
   { kind: "team-key", keyId: "key-one" },
 ])("retains the typed Workflow arming actor: $kind", (armedBy) => {
   const caller = {
+    scope,
     computerId: null,
     actor: armedBy,
     workflow: {
@@ -187,6 +191,7 @@ it.each([
 
 it("both caller ports refuse malformed host role and Workflow attribution", () => {
   const caller = {
+    scope,
     computerId: null,
     actor: { kind: "member", memberId: "member-one" },
   };
@@ -287,50 +292,71 @@ it("derives the closed declaration and signed operation vocabulary from the regi
 it("requires a bounded Hub caller identity for Agent attribution", () => {
   const parse = Schema.decodeUnknownSync(appMethodCallContextSchema);
   expect(
-    parse({ actor: { kind: "agent", agentId: "agent-a" }, computerId: null }),
+    parse({
+      actor: { kind: "agent", agentId: "agent-a" },
+      scope,
+      computerId: null,
+    }),
   ).toEqual({
     actor: { kind: "agent", agentId: "agent-a" },
+    scope,
     computerId: null,
   });
   expect(
     parse({
       actor: { kind: "member", memberId: "member-a" },
+      scope,
       computerId: "computer-a",
     }),
   ).toEqual({
     actor: { kind: "member", memberId: "member-a" },
+    scope,
     computerId: "computer-a",
   });
   expect(
-    parse({ actor: { kind: "team-key", keyId: "key-a" }, computerId: null }),
+    parse({
+      actor: { kind: "team-key", keyId: "key-a" },
+      scope,
+      computerId: null,
+    }),
   ).toEqual({
     actor: { kind: "team-key", keyId: "key-a" },
+    scope,
     computerId: null,
   });
   for (const value of [
     {},
-    { actor: { kind: "agent" }, computerId: null },
-    { actor: { kind: "agent", agentId: "" }, computerId: null },
-    { actor: { kind: "agent", agentId: "a".repeat(257) }, computerId: null },
-    { actor: { kind: "root" }, computerId: null },
-    { actor: { kind: "member" }, computerId: null },
-    { actor: { kind: "team-key" }, computerId: null },
+    { actor: { kind: "agent" }, scope, computerId: null },
+    { actor: { kind: "agent", agentId: "" }, scope, computerId: null },
+    {
+      actor: { kind: "agent", agentId: "a".repeat(257) },
+      scope,
+      computerId: null,
+    },
+    { actor: { kind: "root" }, scope, computerId: null },
+    { actor: { kind: "member" }, scope, computerId: null },
+    { actor: { kind: "team-key" }, scope, computerId: null },
     { actor: { kind: "member", memberId: "member-a" } },
-    { actor: { kind: "member", memberId: "member-a" }, computerId: "" },
+    { actor: { kind: "member", memberId: "member-a" }, scope, computerId: "" },
     {
       actor: { kind: "member", memberId: "member-a" },
+      scope,
       computerId: "a".repeat(257),
     },
   ]) {
-    expect(() => parse(value)).toThrow();
-    expect(() => parseAppMethodCallContext(value)).toThrow();
+    expect(() => parse({ scope, ...value })).toThrow();
+    expect(() => parseAppMethodCallContext({ scope, ...value })).toThrow();
   }
 });
 
 it.each([
-  { actor: { kind: "agent", agentId: "agent-a" }, computerId: null },
-  { actor: { kind: "member", memberId: "member-a" }, computerId: "computer-a" },
-  { actor: { kind: "team-key", keyId: "key-a" }, computerId: null },
+  { actor: { kind: "agent", agentId: "agent-a" }, scope, computerId: null },
+  {
+    actor: { kind: "member", memberId: "member-a" },
+    scope,
+    computerId: "computer-a",
+  },
+  { actor: { kind: "team-key", keyId: "key-a" }, scope, computerId: null },
 ])(
   "decodes the same caller through the runtime and Effect ports: $actor.kind",
   (caller) => {
@@ -393,7 +419,7 @@ it.each(["member", "team-key"])(
       kind === "member"
         ? { kind, memberId: "x".repeat(257) }
         : { kind, keyId: "x".repeat(257) };
-    const input = { actor, computerId: null };
+    const input = { actor, scope, computerId: null };
     expect(() => parseAppMethodCallContext(input)).toThrow();
     expect(() =>
       Schema.decodeUnknownSync(appMethodCallContextSchema)(input),
@@ -402,9 +428,10 @@ it.each(["member", "team-key"])(
 );
 it("both caller ports return decoded fields instead of the raw JSON object", () => {
   const input: unknown = JSON.parse(
-    '{"computerId":null,"actor":{"kind":"member","memberId":"member-a","extra":"discard"},"extra":"discard","__proto__":{"injected":true}}',
+    '{"scope":{"kind":"team","teamId":"team_one"},"computerId":null,"actor":{"kind":"member","memberId":"member-a","extra":"discard"},"extra":"discard","__proto__":{"injected":true}}',
   );
   const expected = {
+    scope,
     computerId: null,
     actor: { kind: "member", memberId: "member-a" },
   };
@@ -431,6 +458,7 @@ it.each(["then", "ctx", "fetch", "constructor"])(
 
 it("strict caller decoding refuses an extra member-actor key without extra root keys", () => {
   const input = {
+    scope,
     computerId: null,
     actor: { kind: "member", memberId: "member-a", extra: "refuse" },
   };
@@ -477,6 +505,7 @@ it("declares a read-only App catalog with the existing workbench capability", ()
 
 it("carries the host's idempotency key to App methods, bounded, in both caller ports", () => {
   const caller = {
+    scope,
     computerId: "computer-a",
     actor: { kind: "member", memberId: "member-a" },
     idempotencyKey: "run_a:generate:0",
@@ -487,7 +516,7 @@ it("carries the host's idempotency key to App methods, bounded, in both caller p
     caller,
   );
   // Callers without one (Agents, people) decode unchanged.
-  const plain = { computerId: caller.computerId, actor: caller.actor };
+  const plain = { scope, computerId: caller.computerId, actor: caller.actor };
   expect(parseAppMethodCallContext(plain)).toEqual(plain);
   for (const idempotencyKey of ["", "k".repeat(129)]) {
     expect(() =>

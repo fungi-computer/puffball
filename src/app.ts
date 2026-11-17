@@ -1,5 +1,6 @@
 export {
   appMethodCallContextSchema,
+  type AppCallerScope,
   type AppMethodCallContext,
   type HostActor,
   type WorkflowAttestation,

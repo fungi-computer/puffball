@@ -1,5 +1,13 @@
 # @fungi.computer/puffball
 
+## 0.10.0
+
+### Minor Changes
+
+- Changes since 0.9.1:
+
+  - feat(apps): require one host-derived caller scope
+
 ## 0.9.1
 
 ### Patch Changes

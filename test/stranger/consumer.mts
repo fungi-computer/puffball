@@ -25,6 +25,7 @@ export type StrangerAppReleaseCore = AppReleaseCore;
 void appId;
 
 const caller: AppMethodCallContext = parseAppMethodCallContext({
+  scope: { kind: "team", teamId: "team_stranger" },
   computerId: null,
   actor: { kind: "member", memberId: "member_stranger" },
 });
@@ -38,6 +39,7 @@ const workflow: WorkflowAttestation = {
   armedBy,
 };
 const workflowCaller: AppMethodCallContext = {
+  scope: caller.scope,
   computerId: null,
   actor: armedBy,
   workflow,

@@ -17,6 +17,7 @@ if (!Result.isSuccess(decoded) || decoded.success !== appId) {
 }
 
 const caller = parseAppMethodCallContext({
+  scope: { kind: "team", teamId: "team_stranger" },
   computerId: null,
   actor: { kind: "member", memberId: "member_stranger" },
 });
@@ -42,10 +43,10 @@ const workflow = workflowAttestationSchema.parse({
 });
 assert.deepEqual(
   parseAppMethodCallContext(
-    { computerId: null, actor: armedBy, workflow },
+    { scope: caller.scope, computerId: null, actor: armedBy, workflow },
     true,
   ),
-  { computerId: null, actor: armedBy, workflow },
+  { scope: caller.scope, computerId: null, actor: armedBy, workflow },
 );
 import { DatabaseSync } from "node:sqlite";
 import { sqliteD1 } from "@fungi.computer/puffball/testing";
@@ -80,7 +81,11 @@ const packedOrigin = await sealBackgroundOrigin(packedOriginKey, {
   method: "save",
 });
 const backgroundCaller = backgroundContext(
-  { actor: { kind: "member", memberId: "member_stranger" }, computerId: null },
+  {
+    scope: caller.scope,
+    actor: { kind: "member", memberId: "member_stranger" },
+    computerId: null,
+  },
   [],
   { name: "save", effect: "write" },
   packedOrigin,

@@ -46,6 +46,7 @@ test("a removed member refuses before continuation admission", async () => {
 });
 
 const context = {
+  scope: { kind: "team", teamId: "team_one" } as const,
   actor: wake.actor,
   computerId: null,
   role: "member" as const,

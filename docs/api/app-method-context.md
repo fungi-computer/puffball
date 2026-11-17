@@ -15,6 +15,15 @@
 ```ts
 const appMethodCallContextSchema: declareConstructor<
   {
+    scope:
+      | {
+          kind: "team";
+          teamId: string;
+        }
+      | {
+          kind: "standalone";
+          tenant: string;
+        };
     computerId: string | null;
     actor:
       | {
@@ -57,6 +66,15 @@ const appMethodCallContextSchema: declareConstructor<
     idempotencyKey?: string;
   },
   {
+    scope:
+      | {
+          kind: "team";
+          teamId: string;
+        }
+      | {
+          kind: "standalone";
+          tenant: string;
+        };
     computerId: string | null;
     actor:
       | {
@@ -100,6 +118,15 @@ const appMethodCallContextSchema: declareConstructor<
   },
   readonly [],
   {
+    scope:
+      | {
+          kind: "team";
+          teamId: string;
+        }
+      | {
+          kind: "standalone";
+          tenant: string;
+        };
     computerId: string | null;
     actor:
       | {
@@ -148,6 +175,12 @@ Host attribution, including paired sealed enqueue origin, uses the sole
 lightweight caller grammar.
 
 ## References
+
+### AppCallerScope
+
+Re-exports [AppCallerScope](app-method-runtime.md#appcallerscope)
+
+---
 
 ### AppMethodCallContext
 

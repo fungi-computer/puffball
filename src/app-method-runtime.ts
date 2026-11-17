@@ -36,6 +36,13 @@ export const appApiReservedMethodNames = Object.freeze({
 } as const);
 /** Sole caller grammar shared by the lightweight runtime and Effect adapter. */
 const identity = z.string().check(z.minLength(1), z.maxLength(256));
+/** The admitting host's scope, never selected by App input or browser headers. */
+export const appCallerScopeSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("team"), teamId: identity }),
+  z.strictObject({ kind: z.literal("standalone"), tenant: identity }),
+]);
+/** One host-derived scope shared by caller attribution and Instance admission. */
+export type AppCallerScope = z.output<typeof appCallerScopeSchema>;
 const memberActor = z.object({ kind: z.literal("member"), memberId: identity });
 const agentActor = z.object({ kind: z.literal("agent"), agentId: identity });
 const keyActor = z.object({ kind: z.literal("team-key"), keyId: identity });
@@ -70,6 +77,7 @@ const backgroundOrigin = z.lazy(() =>
 );
 /** Sole grammar for the host-minted Computer pin and actor attribution. */
 export const appMethodCallerSchema = z.object({
+  scope: appCallerScopeSchema,
   computerId: z.nullable(identity),
   actor: hostActorSchema,
   /** Host-attested enqueue eligibility for this ordinary write; absent otherwise. */

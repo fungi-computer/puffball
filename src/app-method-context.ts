@@ -6,6 +6,7 @@ import {
   type AppMethodCallContext,
 } from "./app-method-runtime.js";
 export type {
+  AppCallerScope,
   AppMethodCallContext,
   HostActor,
   WorkflowAttestation,
