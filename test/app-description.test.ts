@@ -11,7 +11,7 @@ import {
   isEmptyAppDeclaration,
 } from "../src/app.js";
 import { verifiedAppDescriptionSchema } from "../src/internal/app-release-schema.js";
-import { backendMediaType } from "../src/backend.js";
+import { backendJsonSchema, backendMediaType } from "../src/backend.js";
 import { createDeterministicMemoryAppReleaseStore } from "../src/effect.js";
 import {
   createAppReleaseCatalog,
@@ -455,135 +455,153 @@ describe("one App Release", () => {
     ).toThrow();
   });
 
-  it("resolves its UI and durable backend through one eligible root", async () => {
-    const ui = new TextEncoder().encode("<!doctype html><title>Notes</title>");
-    const backend = encode({
-      runtime: { kind: "durable-facet", stateSchema: 1 },
-      compatibilityDate: "2026-09-18",
-      exportName: "NotesFacet",
-      code: "export class NotesFacet {}",
-    });
-    const root = encode({
-      format: "fungi-app-v1",
-      ui: {
-        artifactRef: "artifact:notes.ui",
-        digest: digest(ui),
-        version: "ui-v1",
-        byteLength: ui.byteLength,
-        mediaType: "text/html; charset=utf-8",
-      },
-      backend: {
-        artifactRef: "artifact:notes.backend",
-        digest: digest(backend),
-        version: "backend-v1",
-        byteLength: backend.byteLength,
-        mediaType: backendMediaType,
-      },
-      declaration: {
-        capabilities: ["agent.read"],
-        handlers: [],
-        roles: ["sessions"],
-      },
-    });
-    const objects = new Map([
-      ["artifact:notes.root", { bytes: root, mediaType: appMediaType }],
-      [
-        "artifact:notes.ui",
-        { bytes: ui, mediaType: "text/html; charset=utf-8" as const },
-      ],
-      [
-        "artifact:notes.backend",
-        { bytes: backend, mediaType: backendMediaType },
-      ],
-    ]);
-    const reads: unknown[] = [];
-    const artifactReader: ArtifactReader = {
-      read: (input) => {
-        reads.push(input);
-        const object = objects.get(input.artifactRef);
-        if (object === undefined) return Promise.resolve({ kind: "missing" });
-        return Promise.resolve({
-          kind: "verified" as const,
-          digest: digest(object.bytes),
-          mediaType: object.mediaType,
-          byteLength: object.bytes.byteLength,
-          bytes: {
-            byteLength: object.bytes.byteLength,
-            copy: () => object.bytes.slice(),
-          },
-        });
-      },
-    };
-    const app = { appId: parseAppId("app_notes") };
-    const release: Release = {
-      appId: app.appId,
-      releaseId: parseReleaseId("rel_notes1"),
-      artifact: {
-        artifactRef: parseArtifactRef("artifact:notes.root"),
-        artifactDigest: digest(root),
-        provenance: {
-          sourceRevision: parseSourceRevision(`git:${"a".repeat(40)}`),
-          sourceTreeDigest: digest(new TextEncoder().encode("tree")),
-          buildRecipeDigest: digest(new TextEncoder().encode("recipe")),
+  it.each(["durable-facet", "region"] as const)(
+    "resolves its UI and %s backend through one eligible root",
+    async (kind) => {
+      const ui = new TextEncoder().encode(
+        "<!doctype html><title>Notes</title>",
+      );
+      const backend = encode({
+        runtime: { kind, stateSchema: 1 },
+        compatibilityDate: "2026-09-18",
+        exportName: "NotesFacet",
+        code: "export class NotesFacet {}",
+      });
+      const root = encode({
+        format: "fungi-app-v1",
+        ui: {
+          artifactRef: "artifact:notes.ui",
+          digest: digest(ui),
+          version: "ui-v1",
+          byteLength: ui.byteLength,
+          mediaType: "text/html; charset=utf-8",
         },
-      },
-    };
-    const catalog = createAppReleaseCatalog({
-      artifactReader,
-      store: createDeterministicMemoryAppReleaseStore(),
-    });
-
-    await catalog.createApp(app);
-    await catalog.createRelease(release);
-    await catalog.verifyReleaseArtifact(release.releaseId);
-    const readsAfterVerification = reads.length;
-    const metadata = await catalog.resolveEligibleAppMetadata(
-      release.releaseId,
-    );
-    expect(reads).toHaveLength(readsAfterVerification);
-    expect(metadata.description).toEqual({
-      format: "fungi-app-v1",
-      ui: {
-        artifactRef: parseArtifactRef("artifact:notes.ui"),
-        digest: digest(ui),
-        mediaType: "text/html; charset=utf-8",
-        version: "ui-v1",
-        byteLength: ui.byteLength,
-      },
-      backend: {
-        artifact: {
-          artifactRef: parseArtifactRef("artifact:notes.backend"),
+        backend: {
+          artifactRef: "artifact:notes.backend",
           digest: digest(backend),
-          mediaType: backendMediaType,
           version: "backend-v1",
           byteLength: backend.byteLength,
+          mediaType: backendMediaType,
         },
-        profile: {
-          runtime: { kind: "durable-facet", stateSchema: 1 },
+        declaration: {
+          capabilities: ["agent.read"],
+          handlers: [],
+          roles: ["sessions"],
+        },
+      });
+      const objects = new Map([
+        ["artifact:notes.root", { bytes: root, mediaType: appMediaType }],
+        [
+          "artifact:notes.ui",
+          { bytes: ui, mediaType: "text/html; charset=utf-8" as const },
+        ],
+        [
+          "artifact:notes.backend",
+          { bytes: backend, mediaType: backendMediaType },
+        ],
+      ]);
+      const reads: unknown[] = [];
+      const artifactReader: ArtifactReader = {
+        read: (input) => {
+          reads.push(input);
+          const object = objects.get(input.artifactRef);
+          if (object === undefined) return Promise.resolve({ kind: "missing" });
+          return Promise.resolve({
+            kind: "verified" as const,
+            digest: digest(object.bytes),
+            mediaType: object.mediaType,
+            byteLength: object.bytes.byteLength,
+            bytes: {
+              byteLength: object.bytes.byteLength,
+              copy: () => object.bytes.slice(),
+            },
+          });
+        },
+      };
+      const app = { appId: parseAppId("app_notes") };
+      const release: Release = {
+        appId: app.appId,
+        releaseId: parseReleaseId("rel_notes1"),
+        artifact: {
+          artifactRef: parseArtifactRef("artifact:notes.root"),
+          artifactDigest: digest(root),
+          provenance: {
+            sourceRevision: parseSourceRevision(`git:${"a".repeat(40)}`),
+            sourceTreeDigest: digest(new TextEncoder().encode("tree")),
+            buildRecipeDigest: digest(new TextEncoder().encode("recipe")),
+          },
+        },
+      };
+      const catalog = createAppReleaseCatalog({
+        artifactReader,
+        store: createDeterministicMemoryAppReleaseStore(),
+      });
+
+      await catalog.createApp(app);
+      await catalog.createRelease(release);
+      await catalog.verifyReleaseArtifact(release.releaseId);
+      const readsAfterVerification = reads.length;
+      const metadata = await catalog.resolveEligibleAppMetadata(
+        release.releaseId,
+      );
+      expect(reads).toHaveLength(readsAfterVerification);
+      expect(metadata.description).toEqual({
+        format: "fungi-app-v1",
+        ui: {
+          artifactRef: parseArtifactRef("artifact:notes.ui"),
+          digest: digest(ui),
+          mediaType: "text/html; charset=utf-8",
+          version: "ui-v1",
+          byteLength: ui.byteLength,
+        },
+        backend: {
+          artifact: {
+            artifactRef: parseArtifactRef("artifact:notes.backend"),
+            digest: digest(backend),
+            mediaType: backendMediaType,
+            version: "backend-v1",
+            byteLength: backend.byteLength,
+          },
+          profile: {
+            runtime: { kind, stateSchema: 1 },
+            compatibilityDate: "2026-09-18",
+            exportName: "NotesFacet",
+          },
+        },
+        declaration: {
+          capabilities: ["agent.read"],
+          handlers: [],
+          roles: ["sessions"],
+        },
+      });
+      const resolved = await catalog.resolveEligibleApp(release.releaseId);
+
+      expect(resolved.release).toEqual(release);
+      expect(new TextDecoder().decode(resolved.ui?.bytes.copy())).toContain(
+        "Notes",
+      );
+      expect(resolved.backend?.descriptor).toMatchObject({
+        exportName: "NotesFacet",
+      });
+      expect(reads).toHaveLength(6);
+      expect(reads.slice(0, 3)).toMatchObject([
+        { artifactRef: "artifact:notes.root", verification: "publication" },
+        { artifactRef: "artifact:notes.ui", verification: "publication" },
+        { artifactRef: "artifact:notes.backend", verification: "publication" },
+      ]);
+    },
+  );
+
+  it("refuses a backend runtime profile outside the closed set", () => {
+    expect(() =>
+      Schema.decodeUnknownSync(backendJsonSchema)(
+        JSON.stringify({
+          runtime: { kind: "resident-facet", stateSchema: 1 },
           compatibilityDate: "2026-09-18",
           exportName: "NotesFacet",
-        },
-      },
-      declaration: {
-        capabilities: ["agent.read"],
-        handlers: [],
-        roles: ["sessions"],
-      },
-    });
-    const resolved = await catalog.resolveEligibleApp(release.releaseId);
-
-    expect(resolved.release).toEqual(release);
-    expect(new TextDecoder().decode(resolved.ui?.bytes.copy())).toContain(
-      "Notes",
-    );
-    expect(resolved.backend?.descriptor).toMatchObject({
-      exportName: "NotesFacet",
-    });
-    expect(reads).toHaveLength(6);
-    expect(reads.slice(0, 3)).toMatchObject([
-      { artifactRef: "artifact:notes.root", verification: "publication" },
-      { artifactRef: "artifact:notes.ui", verification: "publication" },
-      { artifactRef: "artifact:notes.backend", verification: "publication" },
-    ]);
+          code: "export class NotesFacet {}",
+        }),
+      ),
+    ).toThrow();
   });
 });

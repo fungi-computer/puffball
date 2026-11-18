@@ -20,6 +20,7 @@ export const appApiReservedMethodNames = Object.freeze({
     "onGitPush",
     "syncRefused",
     "authorizeGitPush",
+    "onRegion",
     "fetch",
     "alarm",
     "queue",
@@ -159,3 +160,60 @@ export const isAppApiMethodName = (name: string): boolean =>
   !Object.values(appApiReservedMethodNames)
     .flat()
     .some((reserved) => reserved === name);
+
+/** One text frame a Region connection may carry in either direction. */
+export const maxAppRegionMessageBytes = 65_536;
+/** Every frame one Region reply sends, together: 16 full frames, not 256. */
+export const maxAppRegionReplyBytes = 1_048_576;
+const utf8Bytes = (data: string) => new TextEncoder().encode(data).byteLength;
+const regionConnection = z.string().check(z.minLength(1), z.maxLength(64));
+const regionData = z
+  .string()
+  .check(z.refine((data) => utf8Bytes(data) <= maxAppRegionMessageBytes));
+
+/**
+ * The bounded events a `region` supervisor delivers to App code. Only a
+ * connect carries a caller, and the host stamps it at admission; messages,
+ * closes and alarms confer no caller authority.
+ */
+export const appRegionEventSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("connect"),
+    connection: regionConnection,
+    caller: appMethodCallerSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("message"),
+    connection: regionConnection,
+    data: regionData,
+  }),
+  z.strictObject({ kind: z.literal("close"), connection: regionConnection }),
+  z.strictObject({ kind: z.literal("alarm") }),
+]);
+/** One decoded supervisor event for a region backend. */
+export type AppRegionEvent = z.output<typeof appRegionEventSchema>;
+
+/** What App code may ask its supervisor to do after one event. */
+export const appRegionReplySchema = z.strictObject({
+  send: z.optional(
+    z
+      .array(z.strictObject({ connection: regionConnection, data: regionData }))
+      .check(
+        z.maxLength(256),
+        z.refine(
+          (sends) =>
+            sends.reduce((total, { data }) => total + utf8Bytes(data), 0) <=
+            maxAppRegionReplyBytes,
+        ),
+      ),
+  ),
+  close: z.optional(z.array(regionConnection).check(z.maxLength(256))),
+  /** The App's next wake; null clears it, absent keeps it. */
+  wakeAt: z.optional(
+    z.nullable(
+      z.number().check(z.int(), z.positive(), z.lte(Number.MAX_SAFE_INTEGER)),
+    ),
+  ),
+});
+/** One decoded, bounded region backend reply. */
+export type AppRegionReply = z.output<typeof appRegionReplySchema>;

@@ -137,7 +137,7 @@ export type VerifiedAppArtifactReference = Readonly<{
 /** Executable descriptor decoded from one verified backend child artifact. */
 export type DurableBackend = Readonly<{
   readonly runtime: Readonly<{
-    readonly kind: "durable-facet";
+    readonly kind: "durable-facet" | "region";
     readonly stateSchema: number;
   }>;
   readonly compatibilityDate: string;

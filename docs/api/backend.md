@@ -10,12 +10,26 @@
 
 ## Variables
 
+### appBackendRuntimeKindSchema
+
+```ts
+const appBackendRuntimeKindSchema: Literals<
+  readonly ["durable-facet", "region"]
+>;
+```
+
+The closed runtime profiles. `durable-facet` runs only inside an admitted call;
+`region` adds supervisor-owned native alarms and sockets that reach the App as
+bounded events.
+
+---
+
 ### durableBackendSchema
 
 ```ts
 const durableBackendSchema: Struct<{
   runtime: Struct<{
-    kind: Literal<"durable-facet">;
+    kind: Literals<readonly ["durable-facet", "region"]>;
     stateSchema: Number;
   }>;
   compatibilityDate: String;
@@ -44,7 +58,7 @@ Content type separating executable backend artifacts from website HTML.
 const backendJsonSchema: fromJsonString<
   Struct<{
     runtime: Struct<{
-      kind: Literal<"durable-facet">;
+      kind: Literals<readonly ["durable-facet", "region"]>;
       stateSchema: Number;
     }>;
     compatibilityDate: String;
@@ -70,7 +84,7 @@ function resolveDurableBackend(
     digest: Sha256Digest;
     backend: Readonly<{
       runtime: Readonly<{
-        kind: "durable-facet";
+        kind: "durable-facet" | "region";
         stateSchema: number;
       }>;
       compatibilityDate: string;
@@ -97,12 +111,50 @@ code.
 
 `Effect`\<\{ `release`: [`Release`](index.md#release); `digest`:
 [`Sha256Digest`](index.md#sha256digest); `backend`: `Readonly`\<\{ `runtime`:
-`Readonly`\<\{ `kind`: `"durable-facet"`; `stateSchema`: `number`; \}\>;
-`compatibilityDate`: `string`; `exportName`: `string`; `code`: `string`; \}\>;
-\}, [`AppReleaseCoreFailure`](effect.md#appreleasecorefailure), `never`\>
+`Readonly`\<\{ `kind`: `"durable-facet"` \| `"region"`; `stateSchema`: `number`;
+\}\>; `compatibilityDate`: `string`; `exportName`: `string`; `code`: `string`;
+\}\>; \}, [`AppReleaseCoreFailure`](effect.md#appreleasecorefailure), `never`\>
 
 ## References
 
 ### DurableBackend
 
 Re-exports [DurableBackend](index.md#durablebackend)
+
+---
+
+### appRegionEventSchema
+
+Re-exports [appRegionEventSchema](app-method-runtime.md#appregioneventschema)
+
+---
+
+### appRegionReplySchema
+
+Re-exports [appRegionReplySchema](app-method-runtime.md#appregionreplyschema)
+
+---
+
+### maxAppRegionMessageBytes
+
+Re-exports
+[maxAppRegionMessageBytes](app-method-runtime.md#maxappregionmessagebytes)
+
+---
+
+### maxAppRegionReplyBytes
+
+Re-exports
+[maxAppRegionReplyBytes](app-method-runtime.md#maxappregionreplybytes)
+
+---
+
+### AppRegionEvent
+
+Re-exports [AppRegionEvent](app-method-runtime.md#appregionevent)
+
+---
+
+### AppRegionReply
+
+Re-exports [AppRegionReply](app-method-runtime.md#appregionreply)

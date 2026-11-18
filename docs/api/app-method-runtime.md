@@ -48,6 +48,26 @@ type AppMethodCallContext = z.output<typeof appMethodCallerSchema>;
 
 Trusted attribution delivered separately from App method arguments.
 
+---
+
+### AppRegionEvent
+
+```ts
+type AppRegionEvent = z.output<typeof appRegionEventSchema>;
+```
+
+One decoded supervisor event for a region backend.
+
+---
+
+### AppRegionReply
+
+```ts
+type AppRegionReply = z.output<typeof appRegionReplySchema>;
+```
+
+One decoded, bounded region backend reply.
+
 ## Variables
 
 ### appApiReservedMethodNames
@@ -70,6 +90,7 @@ const appApiReservedMethodNames: Readonly<{
     "onGitPush",
     "syncRefused",
     "authorizeGitPush",
+    "onRegion",
     "fetch",
     "alarm",
     "queue",
@@ -310,6 +331,111 @@ const appMethodCallerSchema: ZodMiniObject<
 ```
 
 Sole grammar for the host-minted Computer pin and actor attribution.
+
+---
+
+### maxAppRegionMessageBytes
+
+```ts
+const maxAppRegionMessageBytes: 65536 = 65_536;
+```
+
+One text frame a Region connection may carry in either direction.
+
+---
+
+### maxAppRegionReplyBytes
+
+```ts
+const maxAppRegionReplyBytes: 1048576 = 1_048_576;
+```
+
+Every frame one Region reply sends, together: 16 full frames, not 256.
+
+---
+
+### appRegionEventSchema
+
+```ts
+const appRegionEventSchema: ZodMiniDiscriminatedUnion<[ZodMiniObject<{
+  kind: ZodMiniLiteral<"connect">;
+  connection: ZodMiniString<string>;
+  caller: ZodMiniObject<{
+     scope: ZodMiniDiscriminatedUnion<[ZodMiniObject<{
+        kind: ZodMiniLiteral<...>;
+        teamId: ZodMiniString<...>;
+      }, $strict>, ZodMiniObject<{
+        kind: ZodMiniLiteral<...>;
+        tenant: ZodMiniString<...>;
+     }, $strict>], "kind">;
+     computerId: ZodMiniNullable<ZodMiniString<string>>;
+     actor: ZodMiniDiscriminatedUnion<[ZodMiniObject<{
+        kind: ZodMiniLiteral<...>;
+        memberId: ZodMiniString<...>;
+      }, $strip>, ZodMiniObject<{
+        kind: ZodMiniLiteral<...>;
+        agentId: ZodMiniString<...>;
+      }, $strip>, ZodMiniObject<{
+        kind: ZodMiniLiteral<...>;
+        keyId: ZodMiniString<...>;
+     }, $strip>], "kind">;
+     backgroundLane: ZodMiniOptional<ZodMiniString<string>>;
+     backgroundOrigin: ZodMiniOptional<ZodMiniLazy<ZodMiniObject<{
+        method: ZodMiniString<...>;
+        seal: ZodMiniString<...>;
+     }, $strict>>>;
+     role: ZodMiniOptional<ZodType<"member" | "owner" | "admin", unknown, $ZodTypeInternals<"member" | "owner" | "admin", unknown>>>;
+     soleMember: ZodMiniOptional<ZodMiniLiteral<true>>;
+     workflow: ZodMiniOptional<ZodMiniObject<{
+        workflowId: ZodMiniString<string>;
+        runId: ZodMiniString<string>;
+        nodeId: ZodMiniString<string>;
+        armedBy: ZodMiniDiscriminatedUnion<[..., ..., ...], "kind">;
+     }, $strip>>;
+     idempotencyKey: ZodMiniOptional<ZodMiniString<string>>;
+  }, $strip>;
+}, $strict>, ZodMiniObject<{
+  kind: ZodMiniLiteral<"message">;
+  connection: ZodMiniString<string>;
+  data: ZodMiniString<string>;
+}, $strict>, ZodMiniObject<{
+  kind: ZodMiniLiteral<"close">;
+  connection: ZodMiniString<string>;
+}, $strict>, ZodMiniObject<{
+  kind: ZodMiniLiteral<"alarm">;
+}, $strict>], "kind">;
+```
+
+The bounded events a `region` supervisor delivers to App code. Only a connect
+carries a caller, and the host stamps it at admission; messages, closes and
+alarms confer no caller authority.
+
+---
+
+### appRegionReplySchema
+
+```ts
+const appRegionReplySchema: ZodMiniObject<
+  {
+    send: ZodMiniOptional<
+      ZodMiniArray<
+        ZodMiniObject<
+          {
+            connection: ZodMiniString<string>;
+            data: ZodMiniString<string>;
+          },
+          $strict
+        >
+      >
+    >;
+    close: ZodMiniOptional<ZodMiniArray<ZodMiniString<string>>>;
+    wakeAt: ZodMiniOptional<ZodMiniNullable<ZodMiniNumber<number>>>;
+  },
+  $strict
+>;
+```
+
+What App code may ask its supervisor to do after one event.
 
 ## Functions
 

@@ -182,7 +182,7 @@ const verifiedAppArtifactReferenceSchema = Schema.Struct({
 
 const verifiedBackendProfileSchema = Schema.Struct({
   runtime: Schema.Struct({
-    kind: Schema.Literal("durable-facet"),
+    kind: Schema.Literals(["durable-facet", "region"]),
     stateSchema: Schema.Number.pipe(
       Schema.check(Schema.isInt()),
       Schema.check(Schema.isGreaterThan(0)),

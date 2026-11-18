@@ -3,10 +3,20 @@ import * as Schema from "effect/Schema";
 import type { AppReleaseCore } from "./effect.js";
 import type { ReleaseId } from "./index.js";
 
+/**
+ * The closed runtime profiles. `durable-facet` runs only inside an admitted
+ * call; `region` adds supervisor-owned native alarms and sockets that reach
+ * the App as bounded events.
+ */
+export const appBackendRuntimeKindSchema = Schema.Literals([
+  "durable-facet",
+  "region",
+]);
+
 /** This immutable descriptor is stored inside the verified Release artifact. */
 export const durableBackendSchema = Schema.Struct({
   runtime: Schema.Struct({
-    kind: Schema.Literal("durable-facet"),
+    kind: appBackendRuntimeKindSchema,
     stateSchema: Schema.Number.pipe(
       Schema.check(Schema.isInt()),
       Schema.check(Schema.isGreaterThan(0)),
@@ -41,3 +51,12 @@ export function resolveDurableBackend(
     };
   });
 }
+
+export {
+  appRegionEventSchema,
+  appRegionReplySchema,
+  maxAppRegionMessageBytes,
+  maxAppRegionReplyBytes,
+  type AppRegionEvent,
+  type AppRegionReply,
+} from "./app-method-runtime.js";

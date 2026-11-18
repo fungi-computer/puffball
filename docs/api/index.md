@@ -1326,7 +1326,7 @@ One immutable child reference retained after App publication verification.
 ```ts
 type DurableBackend = Readonly<{
   runtime: Readonly<{
-    kind: "durable-facet";
+    kind: "durable-facet" | "region";
     stateSchema: number;
   }>;
   compatibilityDate: string;

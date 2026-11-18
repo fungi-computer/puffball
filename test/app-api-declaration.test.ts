@@ -398,6 +398,16 @@ describe("digest-covered App API declaration", () => {
     ).toThrow();
   });
 
+  test("a hand-built Release cannot declare the supervisor-only region entry", () => {
+    expect(appApiReservedMethodNames.lifecycle).toContain("onRegion");
+    expect(() =>
+      decode({
+        ...declaration,
+        api: { methods: { onRegion: api.methods.read } },
+      }),
+    ).toThrow();
+  });
+
   test("a UI-only Release cannot advertise backend methods", () => {
     expect(() =>
       Schema.decodeUnknownSync(appBuildJsonSchema)(

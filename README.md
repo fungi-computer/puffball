@@ -1,5 +1,176 @@
 # Puffball (`@fungi.computer/puffball`)
 
+Puffball keeps track of web apps and their released versions. It only serves a
+version you chose to publish, after checking that its files match the recorded
+checksum.
+
+```mermaid
+flowchart LR
+  Host[Your host] --> Puffball
+  Puffball --> Catalog[(Apps, Releases, routes)]
+  Visitor[Request for a route] --> Puffball
+  Puffball -->|reads bytes, checks digest| Artifact[Artifact store]
+  Puffball -->|serves the promoted Release| Visitor
+```
+
+## Quick start
+
+Install it:
+
+```sh
+npm install @fungi.computer/puffball
+```
+
+This creates an App, a public route, and one Release whose artifact is a small
+HTML page, then promotes the Release and reads the page back through the route.
+It runs in Node with the in-memory store and a ten-line artifact reader. The
+store is told which route the App may hold:
+
+```ts
+import { createHash } from "node:crypto";
+import {
+  createAppReleaseCatalog,
+  parseAppId,
+  parseArtifactRef,
+  parseIdempotencyKey,
+  parsePublicSurfaceId,
+  parseReleaseId,
+  parseSha256Digest,
+  parseSourceRevision,
+  parseStableRoute,
+  type ArtifactMediaType,
+  type ArtifactReader,
+  type ArtifactRef,
+} from "@fungi.computer/puffball";
+import { createDeterministicMemoryAppReleaseStore } from "@fungi.computer/puffball/effect";
+
+const sha256 = (bytes: Uint8Array) =>
+  parseSha256Digest(
+    `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
+  );
+
+// Two artifacts: the HTML page, and the App root that points at it.
+const html = new TextEncoder().encode("<!doctype html><h1>Hello</h1>");
+const htmlRef = parseArtifactRef("artifact:hello.ui");
+const root = new TextEncoder().encode(
+  JSON.stringify({
+    format: "fungi-app-v1",
+    ui: {
+      artifactRef: htmlRef,
+      digest: sha256(html),
+      version: "v1",
+      byteLength: html.byteLength,
+      mediaType: "text/html; charset=utf-8",
+    },
+  }),
+);
+const rootRef = parseArtifactRef("artifact:hello.release");
+
+// A tiny artifact reader: look the bytes up, hash them, compare digests.
+const files = new Map<
+  ArtifactRef,
+  { bytes: Uint8Array; mediaType: ArtifactMediaType }
+>([
+  [htmlRef, { bytes: html, mediaType: "text/html; charset=utf-8" }],
+  [rootRef, { bytes: root, mediaType: "application/vnd.fungi.app+json" }],
+]);
+const artifactReader: ArtifactReader = {
+  read: async ({ artifactRef, expectedDigest }) => {
+    const file = files.get(artifactRef);
+    if (file === undefined) return { kind: "missing" };
+    const digest = sha256(file.bytes);
+    if (digest !== expectedDigest)
+      return { kind: "digest-mismatch", actualDigest: digest };
+    return {
+      kind: "verified",
+      digest,
+      mediaType: file.mediaType,
+      byteLength: file.bytes.byteLength,
+      bytes: {
+        byteLength: file.bytes.byteLength,
+        copy: () => file.bytes.slice(),
+      },
+    };
+  },
+};
+
+const appId = parseAppId("app_hello");
+const publicSurfaceId = parsePublicSurfaceId("ps_hello");
+const releaseId = parseReleaseId("rel_hello1");
+const route = parseStableRoute("/hello");
+
+// The operator decides which App may hold which route. Here it is /hello.
+const catalog = createAppReleaseCatalog({
+  artifactReader,
+  store: createDeterministicMemoryAppReleaseStore({
+    routes: {
+      structuralRoutes: [],
+      platformRoutes: [{ appId, stableRoute: route }],
+    },
+  }),
+});
+
+await catalog.createApp({ appId });
+await catalog.createPublicSurface({
+  publicSurfaceId,
+  appId,
+  stableRoute: route,
+  publisher: {
+    kind: "platform",
+    teamId: "team_hello",
+    userId: "user_hello",
+    requestKey: publicSurfaceId,
+  },
+});
+await catalog.createRelease({
+  releaseId,
+  appId,
+  artifact: {
+    artifactRef: rootRef,
+    artifactDigest: sha256(root),
+    provenance: {
+      sourceRevision: parseSourceRevision(`git:${"a".repeat(40)}`),
+      sourceTreeDigest: sha256(new TextEncoder().encode("source tree")),
+      buildRecipeDigest: sha256(new TextEncoder().encode("build recipe")),
+    },
+  },
+});
+await catalog.verifyReleaseArtifact(releaseId);
+await catalog.transition({
+  kind: "promotion",
+  publicSurfaceId,
+  releaseId,
+  idempotencyKey: parseIdempotencyKey("idem_hello-promote-1"),
+});
+
+const website = await catalog.resolvePublicWebsite(route);
+console.log(new TextDecoder().decode(website.bytes.copy()));
+// <!doctype html><h1>Hello</h1>
+```
+
+## Common tasks
+
+### Create an App, a Release and a route
+
+The Quick start does it in Node with an in-memory store.
+
+### Promote or revoke a Release
+
+See [Core concepts](#core-concepts).
+
+### Describe an App's methods and events
+
+See [Method discovery](#method-discovery) and
+[App event declarations](#app-event-declarations).
+
+### Test against SQLite
+
+See [Native SQLite test adapter](#native-sqlite-test-adapter).
+
+## Reference
+
+### Overview
+
 Puffball is a catalog for web apps and their immutable releases. It records
 which App exists, which Releases it has, and which Release each public route
 serves. Before anything is served or selected, it reads the artifact bytes and
@@ -95,128 +266,6 @@ sqlite.close();
 The adapter uses the public Watchdog Node SQLite owner. It supplies prepared
 statements and atomic batches for tests; it is not a Cloudflare emulator or
 isolation boundary. The caller owns schema setup and database lifetime.
-
-## Quick start
-
-This creates an App, a public route, and one Release whose artifact is a small
-HTML page, then promotes the Release and reads the page back through the route.
-It runs in Node with the in-memory store and a ten-line artifact reader:
-
-```ts
-import { createHash } from "node:crypto";
-import {
-  createAppReleaseCatalog,
-  parseAppId,
-  parseArtifactRef,
-  parseIdempotencyKey,
-  parsePublicSurfaceId,
-  parseReleaseId,
-  parseSha256Digest,
-  parseSourceRevision,
-  parseStableRoute,
-  type ArtifactMediaType,
-  type ArtifactReader,
-  type ArtifactRef,
-} from "@fungi.computer/puffball";
-import { createDeterministicMemoryAppReleaseStore } from "@fungi.computer/puffball/effect";
-
-const sha256 = (bytes: Uint8Array) =>
-  parseSha256Digest(
-    `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
-  );
-
-// Two artifacts: the HTML page, and the App root that points at it.
-const html = new TextEncoder().encode("<!doctype html><h1>Hello</h1>");
-const htmlRef = parseArtifactRef("artifact:hello.ui");
-const root = new TextEncoder().encode(
-  JSON.stringify({
-    format: "fungi-app-v1",
-    ui: {
-      artifactRef: htmlRef,
-      digest: sha256(html),
-      version: "v1",
-      byteLength: html.byteLength,
-      mediaType: "text/html; charset=utf-8",
-    },
-  }),
-);
-const rootRef = parseArtifactRef("artifact:hello.release");
-
-// A tiny artifact reader: look the bytes up, hash them, compare digests.
-const files = new Map<
-  ArtifactRef,
-  { bytes: Uint8Array; mediaType: ArtifactMediaType }
->([
-  [htmlRef, { bytes: html, mediaType: "text/html; charset=utf-8" }],
-  [rootRef, { bytes: root, mediaType: "application/vnd.fungi.app+json" }],
-]);
-const artifactReader: ArtifactReader = {
-  read: async ({ artifactRef, expectedDigest }) => {
-    const file = files.get(artifactRef);
-    if (file === undefined) return { kind: "missing" };
-    const digest = sha256(file.bytes);
-    if (digest !== expectedDigest)
-      return { kind: "digest-mismatch", actualDigest: digest };
-    return {
-      kind: "verified",
-      digest,
-      mediaType: file.mediaType,
-      byteLength: file.bytes.byteLength,
-      bytes: {
-        byteLength: file.bytes.byteLength,
-        copy: () => file.bytes.slice(),
-      },
-    };
-  },
-};
-
-const catalog = createAppReleaseCatalog({
-  artifactReader,
-  store: createDeterministicMemoryAppReleaseStore(),
-});
-
-const appId = parseAppId("app_hello");
-const publicSurfaceId = parsePublicSurfaceId("ps_hello");
-const releaseId = parseReleaseId("rel_hello1");
-const route = parseStableRoute("/hello");
-
-await catalog.createApp({ appId });
-await catalog.createPublicSurface({
-  publicSurfaceId,
-  appId,
-  stableRoute: route,
-  publisher: {
-    kind: "platform",
-    teamId: "team_hello",
-    userId: "user_hello",
-    requestKey: publicSurfaceId,
-  },
-});
-await catalog.createRelease({
-  releaseId,
-  appId,
-  artifact: {
-    artifactRef: rootRef,
-    artifactDigest: sha256(root),
-    provenance: {
-      sourceRevision: parseSourceRevision(`git:${"a".repeat(40)}`),
-      sourceTreeDigest: sha256(new TextEncoder().encode("source tree")),
-      buildRecipeDigest: sha256(new TextEncoder().encode("build recipe")),
-    },
-  },
-});
-await catalog.verifyReleaseArtifact(releaseId);
-await catalog.transition({
-  kind: "promotion",
-  publicSurfaceId,
-  releaseId,
-  idempotencyKey: parseIdempotencyKey("idem_hello-promote-1"),
-});
-
-const website = await catalog.resolvePublicWebsite(route);
-console.log(new TextDecoder().decode(website.bytes.copy()));
-// <!doctype html><h1>Hello</h1>
-```
 
 ## Core concepts
 

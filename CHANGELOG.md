@@ -1,5 +1,18 @@
 # @fungi.computer/puffball
 
+## 0.12.0
+
+### Minor Changes
+
+- Changes since 0.11.0:
+
+  - fix(apps): bound Region sockets, messages, sends and wakes
+  - fix(apps): keep the Region grammar and host off App backend bundles
+  - fix(apps): satisfy lint and type surfaces for the Region profile
+  - feat(puffball): reserve the onRegion entry on every host
+  - feat(oyster): supervise App Region sockets and wakes natively
+  - feat(puffball): accept the region backend runtime profile
+
 ## 0.11.0
 
 ### Minor Changes
