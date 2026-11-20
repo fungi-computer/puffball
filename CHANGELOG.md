@@ -1,5 +1,13 @@
 # @fungi.computer/puffball
 
+## 0.13.0
+
+### Minor Changes
+
+- Changes since 0.12.0:
+
+  - feat(agar): add the agent.stop capability for stop all
+
 ## 0.12.0
 
 ### Minor Changes

@@ -83,6 +83,7 @@ export const appCapabilityIds = [
   "agent.avatar",
   "agent.instructions",
   "agent.toolPolicy",
+  "agent.stop",
   "agent.read",
   "agent.send",
   "computer.list",
