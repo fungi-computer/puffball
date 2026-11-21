@@ -773,6 +773,8 @@ type AppApi = Readonly<{
         requires: readonly AppCapabilityId[];
         pending?: true;
         hidden?: true;
+        label?: string;
+        precheck?: string;
         present?: Readonly<{
           verb: string;
         }>;

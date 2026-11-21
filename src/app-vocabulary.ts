@@ -157,6 +157,10 @@ export type AppApi = Readonly<{
         pending?: true | undefined;
         /** Omit from Workflow and tool discovery, without changing direct-call authority. */
         hidden?: true | undefined;
+        /** What a person reads on an approval card for this write; `description` is for the Agent. */
+        label?: string | undefined;
+        /** A write names the hidden read method the Hub calls with its input before asking anyone to approve it. */
+        precheck?: string | undefined;
         /** Finished calls read as a person-facing row projected by the App's hidden `present` method. */
         present?: Readonly<{ verb: string }> | undefined;
       }>

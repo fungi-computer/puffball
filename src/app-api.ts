@@ -49,6 +49,16 @@ const method = Schema.Struct({
   output: projection,
   pending: Schema.optional(Schema.Literal(true)),
   hidden: Schema.optional(Schema.Literal(true)),
+  label: Schema.optional(
+    Schema.String.check(
+      Schema.isMinLength(1),
+      Schema.isMaxLength(48),
+      Schema.isPattern(/^[^\p{Cc}\p{Cf}\p{Zl}\p{Zp}.!?]+$/u),
+    ),
+  ),
+  precheck: Schema.optional(
+    Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(128)),
+  ),
   present: Schema.optional(
     Schema.Struct({
       verb: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(32)),
