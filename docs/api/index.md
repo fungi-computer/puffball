@@ -2611,6 +2611,7 @@ const appCapabilityIds: readonly [
   "agent.avatar",
   "agent.instructions",
   "agent.toolPolicy",
+  "agent.extensions",
   "agent.stop",
   "agent.read",
   "agent.send",
