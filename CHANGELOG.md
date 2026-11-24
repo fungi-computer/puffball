@@ -1,5 +1,18 @@
 # @fungi.computer/puffball
 
+## 0.15.2
+
+### Patch Changes
+
+- Changes since 0.15.1:
+
+  - fix(deps): update the Cloudflare Vitest plugin to the release that exits
+    cleanly
+
+- Updated dependencies
+  - @fungi.computer/cairn@0.1.1
+  - @fungi.computer/watchdog@0.1.7
+
 ## 0.15.1
 
 ### Patch Changes
