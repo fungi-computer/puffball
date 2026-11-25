@@ -3,6 +3,12 @@ import {
   artifactDispositionReadbackSchema,
   createD1ArtifactDispositions,
 } from "./artifact-dispositions.js";
+export {
+  createD1SitePublications,
+  type SitePublicationReservation,
+  type SiteDelivery,
+  type SiteRecord,
+} from "./internal/site-publications.js";
 import {
   buyerReferenceSchemaSql,
   createD1BuyerReferences,
@@ -351,6 +357,7 @@ const publicSurfaceRowSchema = Schema.Struct({
   public_surface_id: Schema.String,
   app_id: Schema.String,
   stable_route: Schema.String,
+  site_name: Schema.optionalKey(Schema.NullOr(Schema.String)),
 });
 const publicSurfaceDefinitionRowSchema = Schema.Struct({
   ...publicSurfaceRowSchema.fields,
@@ -473,8 +480,8 @@ export type ErasureBucket = AppReleaseR2Bucket & {
 const erasureAppRow = Schema.Struct({ app_id: Schema.String });
 const erasurePublisherRow = Schema.Struct({
   app_id: Schema.String,
-  source_provider: Schema.Literals(["artifacts", "github"]),
-  source_repository: Schema.String,
+  source_provider: Schema.Literals(["artifacts", "github", "captured-output"]),
+  source_repository: Schema.NullOr(Schema.String),
 });
 const erasureReleaseRow = Schema.Struct({
   description_json: Schema.NullOr(Schema.String),
@@ -660,9 +667,12 @@ export function createTeamAppReleaseErasure(
             throw new Error("App Release R2 object is missing before erasure");
       const repositories = [
         ...new Set([
-          ...apps
-            .filter((app) => app.source_provider === "artifacts")
-            .map((app) => app.source_repository),
+          ...apps.flatMap((app) =>
+            app.source_provider === "artifacts" &&
+            app.source_repository !== null
+              ? [app.source_repository]
+              : [],
+          ),
           ...pending.flatMap((job) =>
             job.repository_name === null ? [] : [job.repository_name],
           ),
@@ -844,6 +854,14 @@ export function createTeamAppReleaseErasure(
                 `DELETE FROM ${table} WHERE release_id IN (SELECT release_id FROM app_release_releases WHERE app_id=?) AND NOT EXISTS (SELECT 1 FROM app_release_buyer_references b WHERE b.release_id=${table}.release_id)`,
                 appId,
               ),
+            ),
+            statement(
+              "DELETE FROM app_release_site_operations WHERE public_surface_id IN (SELECT public_surface_id FROM app_release_public_surfaces WHERE app_id=?)",
+              appId,
+            ),
+            statement(
+              "DELETE FROM app_release_site_publications WHERE public_surface_id IN (SELECT public_surface_id FROM app_release_public_surfaces WHERE app_id=?)",
+              appId,
             ),
             statement(
               "DELETE FROM app_release_public_surfaces WHERE app_id=?",
@@ -1033,6 +1051,11 @@ CREATE TABLE app_release_release_verification_formats (release_id TEXT PRIMARY K
 ${publicSurfaceTableSql}
 CREATE TABLE app_release_transitions (sequence INTEGER PRIMARY KEY AUTOINCREMENT, transition_id TEXT NOT NULL UNIQUE, operation_kind TEXT NOT NULL, idempotency_key TEXT NOT NULL, release_id TEXT NOT NULL, public_surface_id TEXT, UNIQUE (operation_kind, idempotency_key)) STRICT;
 CREATE INDEX app_release_public_surfaces_stable_route_idx ON app_release_public_surfaces (stable_route, public_surface_id);
+CREATE UNIQUE INDEX app_release_site_names ON app_release_public_surfaces(publisher_team_id,site_name) WHERE site_name IS NOT NULL;
+CREATE TABLE app_release_site_publications (team_id TEXT NOT NULL, request_id TEXT NOT NULL, public_surface_id TEXT NOT NULL REFERENCES app_release_public_surfaces(public_surface_id), release_id TEXT NOT NULL, input_digest TEXT NOT NULL, intent_digest TEXT NOT NULL, PRIMARY KEY(team_id,request_id)) STRICT;
+CREATE UNIQUE INDEX app_release_site_link_digests ON app_release_public_surfaces(site_link_digest) WHERE site_link_digest IS NOT NULL;
+CREATE TABLE app_release_site_operations (team_id TEXT NOT NULL, request_id TEXT NOT NULL, public_surface_id TEXT NOT NULL REFERENCES app_release_public_surfaces(public_surface_id), request_digest TEXT NOT NULL, actor_id TEXT NOT NULL, PRIMARY KEY(team_id,request_id)) STRICT;
+
 CREATE INDEX app_release_transitions_selected_surface_idx ON app_release_transitions (public_surface_id, operation_kind, sequence DESC) WHERE operation_kind IN ('promotion', 'rollback');
 CREATE INDEX app_release_transitions_revoked_release_idx ON app_release_transitions (release_id, operation_kind) WHERE operation_kind = 'revocation';
 CREATE TABLE app_release_transition_obligations (sequence INTEGER PRIMARY KEY REFERENCES app_release_transitions(sequence), transition_id TEXT NOT NULL UNIQUE, operation_kind TEXT NOT NULL, idempotency_key TEXT NOT NULL, release_id TEXT NOT NULL, public_surface_id TEXT, state TEXT NOT NULL CHECK(state IN ('pending','acknowledged'))) STRICT;
@@ -1041,7 +1064,7 @@ CREATE TABLE app_release_transition_obligation_enumeration (sequence INTEGER PRI
 CREATE TABLE app_release_transition_obligation_pages (sequence INTEGER NOT NULL REFERENCES app_release_transition_obligations(sequence), cursor TEXT, cursor_is_initial INTEGER NOT NULL CHECK(cursor_is_initial IN (0, 1)), cursor_key TEXT NOT NULL, next_cursor TEXT, complete INTEGER NOT NULL CHECK(complete IN (0, 1)), team_ids_json TEXT NOT NULL CHECK(json_valid(team_ids_json)), PRIMARY KEY(sequence, cursor_is_initial, cursor_key)) STRICT;
 CREATE TABLE app_release_transition_obligation_teams (sequence INTEGER NOT NULL REFERENCES app_release_transition_obligations(sequence), team_id TEXT NOT NULL CHECK(length(team_id) BETWEEN 1 AND 256), state TEXT NOT NULL CHECK(state IN ('pending', 'applied', 'no-op', 'expired')), PRIMARY KEY(sequence, team_id)) STRICT;
 CREATE INDEX app_release_transition_obligation_teams_pending_idx ON app_release_transition_obligation_teams(sequence, state, team_id);
-CREATE TABLE app_release_team_publishers (app_id TEXT PRIMARY KEY REFERENCES app_release_apps(app_id), team_id TEXT NOT NULL CHECK(length(team_id) BETWEEN 1 AND 256), source_provider TEXT NOT NULL CHECK(source_provider IN ('artifacts','github')), source_repository TEXT NOT NULL CHECK(length(source_repository) BETWEEN 1 AND 1024), source_branch TEXT NOT NULL CHECK(source_branch = 'main'), template_app_id TEXT, template_seed_revision TEXT, CHECK((template_app_id IS NULL) = (template_seed_revision IS NULL))) STRICT;
+CREATE TABLE app_release_team_publishers (app_id TEXT PRIMARY KEY REFERENCES app_release_apps(app_id), team_id TEXT NOT NULL CHECK(length(team_id) BETWEEN 1 AND 256), source_provider TEXT NOT NULL CHECK(source_provider IN ('artifacts','github','captured-output')), source_repository TEXT CHECK(length(source_repository) BETWEEN 1 AND 1024), source_branch TEXT CHECK(source_branch = 'main'), template_app_id TEXT, template_seed_revision TEXT, CHECK((template_app_id IS NULL) = (template_seed_revision IS NULL)), CHECK((source_provider='captured-output' AND source_repository IS NULL AND source_branch IS NULL AND template_app_id IS NULL) OR (source_provider<>'captured-output' AND source_repository IS NOT NULL AND source_branch IS NOT NULL))) STRICT;
 CREATE INDEX app_release_team_publishers_team_idx ON app_release_team_publishers(team_id, app_id);
 CREATE TABLE app_release_release_verification_metadata (release_id TEXT PRIMARY KEY REFERENCES app_release_release_verifications(release_id), artifact_digest TEXT NOT NULL, description_json TEXT NOT NULL CHECK(json_valid(description_json))) STRICT;
 CREATE TABLE publisher_template_seed_receipts (template_repository TEXT NOT NULL, seed_revision TEXT NOT NULL, platform_app_id TEXT NOT NULL, source_revision TEXT NOT NULL, source_tree_digest TEXT NOT NULL, recipe_json TEXT CHECK(recipe_json IS NULL OR json_valid(recipe_json)), build_recipe_digest TEXT CHECK(build_recipe_digest IS NULL OR (length(build_recipe_digest) = 71 AND substr(build_recipe_digest, 1, 7) = 'sha256:' AND substr(build_recipe_digest, 8) NOT GLOB '*[^0-9a-f]*')), CHECK((recipe_json IS NULL) = (build_recipe_digest IS NULL)), PRIMARY KEY (template_repository, seed_revision)) STRICT;
@@ -1061,7 +1084,11 @@ CREATE TRIGGER app_release_apps_write_once BEFORE UPDATE ON app_release_apps BEG
 CREATE TRIGGER app_release_releases_write_once BEFORE UPDATE ON app_release_releases BEGIN SELECT RAISE(ABORT, 'App Release releases are write-once'); END;
 CREATE TRIGGER app_release_verifications_write_once BEFORE UPDATE ON app_release_release_verifications BEGIN SELECT RAISE(ABORT, 'App Release verifications are write-once'); END;
 CREATE TRIGGER app_release_verification_formats_write_once BEFORE UPDATE ON app_release_release_verification_formats BEGIN SELECT RAISE(ABORT, 'App Release verification formats are write-once'); END;
-CREATE TRIGGER app_release_public_surfaces_write_once BEFORE UPDATE ON app_release_public_surfaces BEGIN SELECT RAISE(ABORT, 'App Release public Surfaces are write-once'); END;
+CREATE TRIGGER app_release_public_surfaces_write_once BEFORE UPDATE ON app_release_public_surfaces WHEN OLD.public_surface_id IS NOT NEW.public_surface_id OR OLD.app_id IS NOT NEW.app_id OR OLD.stable_route IS NOT NEW.stable_route OR OLD.route_key IS NOT NEW.route_key OR OLD.publisher_team_id IS NOT NEW.publisher_team_id OR OLD.publisher_user_id IS NOT NEW.publisher_user_id OR OLD.authority_kind IS NOT NEW.authority_kind OR OLD.request_key IS NOT NEW.request_key OR OLD.site_name IS NOT NEW.site_name BEGIN SELECT RAISE(ABORT, 'App Release public Surface identities are write-once'); END;
+CREATE TRIGGER app_release_site_operations_write_once BEFORE UPDATE ON app_release_site_operations BEGIN SELECT RAISE(ABORT, 'Site lifecycle receipts are write-once'); END;
+CREATE TRIGGER app_release_site_operations_append_only BEFORE DELETE ON app_release_site_operations WHEN NOT EXISTS (SELECT 1 FROM app_release_erasure_scope e JOIN app_release_public_surfaces s ON s.app_id=e.app_id WHERE s.public_surface_id=OLD.public_surface_id) BEGIN SELECT RAISE(ABORT, 'Site lifecycle receipts are append-only'); END;
+CREATE TRIGGER app_release_site_publications_write_once BEFORE UPDATE ON app_release_site_publications BEGIN SELECT RAISE(ABORT, 'Site publication reservations are write-once'); END;
+CREATE TRIGGER app_release_site_publications_append_only BEFORE DELETE ON app_release_site_publications WHEN NOT EXISTS (SELECT 1 FROM app_release_erasure_scope e JOIN app_release_public_surfaces s ON s.app_id=e.app_id WHERE s.public_surface_id=OLD.public_surface_id) BEGIN SELECT RAISE(ABORT, 'Site publication reservations are append-only'); END;
 CREATE TRIGGER app_release_transitions_write_once BEFORE UPDATE ON app_release_transitions BEGIN SELECT RAISE(ABORT, 'App Release transitions are write-once'); END;
 CREATE TRIGGER app_release_transition_obligation_enumeration_after_insert AFTER INSERT ON app_release_transition_obligations BEGIN INSERT OR IGNORE INTO app_release_transition_obligation_enumeration(sequence) VALUES (NEW.sequence); END;
 CREATE TRIGGER app_release_transition_obligation_after_insert AFTER INSERT ON app_release_transitions WHEN NEW.operation_kind = 'revocation' BEGIN INSERT INTO app_release_transition_obligations (sequence, transition_id, operation_kind, idempotency_key, release_id, public_surface_id, state) VALUES (NEW.sequence, NEW.transition_id, NEW.operation_kind, NEW.idempotency_key, NEW.release_id, NEW.public_surface_id, 'pending'); END;
@@ -1099,9 +1126,9 @@ CREATE TRIGGER app_release_closed_sellers_no_delete BEFORE DELETE ON app_release
 const teamAppPublisherRowSchema = Schema.Struct({
   app_id: appIdSchema,
   team_id: Schema.String,
-  source_provider: Schema.Literals(["artifacts", "github"]),
-  source_repository: Schema.String,
-  source_branch: Schema.Literal("main"),
+  source_provider: Schema.Literals(["artifacts", "github", "captured-output"]),
+  source_repository: Schema.NullOr(Schema.String),
+  source_branch: Schema.NullOr(Schema.Literal("main")),
   template_app_id: Schema.NullOr(appIdSchema),
   template_seed_revision: Schema.NullOr(sourceRevisionSchema),
 });
@@ -1112,11 +1139,14 @@ function registrationFromRow(
   const registration = {
     appId: value.app_id,
     teamId: value.team_id,
-    source: {
-      provider: value.source_provider,
-      repository: value.source_repository,
-      branch: value.source_branch,
-    },
+    source:
+      value.source_provider === "captured-output"
+        ? { provider: "captured-output" }
+        : {
+            provider: value.source_provider,
+            repository: value.source_repository,
+            branch: value.source_branch,
+          },
   };
   return Schema.decodeUnknownSync(teamAppPublisherRegistrationSchema)(
     value.template_app_id !== null && value.template_seed_revision !== null
@@ -1178,8 +1208,12 @@ export function createD1TeamAppPublisherRegistry(
             registration.appId,
             registration.teamId,
             registration.source.provider,
-            registration.source.repository,
-            registration.source.branch,
+            registration.source.provider === "captured-output"
+              ? null
+              : registration.source.repository,
+            registration.source.provider === "captured-output"
+              ? null
+              : registration.source.branch,
             registration.templateSeed?.appId ?? null,
             registration.templateSeed?.revision ?? null,
           ),
@@ -1192,8 +1226,12 @@ export function createD1TeamAppPublisherRegistry(
       const matches =
         current.registration.teamId === registration.teamId &&
         current.registration.source.provider === registration.source.provider &&
-        current.registration.source.repository ===
-          registration.source.repository &&
+        ((current.registration.source.provider === "captured-output" &&
+          registration.source.provider === "captured-output") ||
+          (current.registration.source.provider !== "captured-output" &&
+            registration.source.provider !== "captured-output" &&
+            current.registration.source.repository ===
+              registration.source.repository)) &&
         current.registration.templateSeed?.appId ===
           registration.templateSeed?.appId &&
         current.registration.templateSeed?.revision ===
@@ -1919,6 +1957,7 @@ export function createD1AppReleaseStore(
             surface.publisher.userId,
             surface.publisher.kind,
             surface.publisher.requestKey,
+            surface.site?.name ?? null,
           )
           .first();
         const row =
@@ -1939,7 +1978,8 @@ export function createD1AppReleaseStore(
           canonical.app_id !== surface.appId ||
           canonical.stable_route !== surface.stableRoute ||
           canonical.authority_kind !== surface.publisher.kind ||
-          canonical.publisher_user_id !== surface.publisher.userId
+          canonical.publisher_user_id !== surface.publisher.userId ||
+          (canonical.site_name ?? null) !== (surface.site?.name ?? null)
         )
           return { kind: "conflict" } satisfies PublicSurfaceCreate;
         return {
@@ -2239,7 +2279,7 @@ async function readPublicSurface(
 ): Promise<PublicSurface | null> {
   const row = await database
     .prepare(
-      `SELECT public_surface_id, app_id, stable_route
+      `SELECT public_surface_id, app_id, stable_route, site_name
        FROM app_release_public_surfaces WHERE public_surface_id = ?`,
     )
     .bind(publicSurfaceId)
@@ -2282,6 +2322,7 @@ function publicWebsiteAuthorityStatement(
          FROM app_release_route_claims c
          JOIN app_release_public_surfaces s ON s.public_surface_id=c.public_surface_id
          WHERE c.route_key = ? AND c.stable_route = ? AND c.state='held'
+           AND s.site_name IS NULL
            AND NOT EXISTS (SELECT 1 FROM app_release_surface_retirements x WHERE x.public_surface_id=s.public_surface_id)
          LIMIT 2
        ), selected_transitions AS (
@@ -2543,11 +2584,14 @@ function releaseFromRow(row: ReleaseRow): Release {
 }
 
 function publicSurfaceFromRow(row: PublicSurfaceRow): PublicSurface {
-  return {
+  const surface = {
     publicSurfaceId: parsePublicSurfaceId(row.public_surface_id),
     appId: parseAppId(row.app_id),
     stableRoute: parseStableRoute(row.stable_route),
   };
+  if (row.site_name != null)
+    return { ...surface, site: { name: row.site_name } };
+  return surface;
 }
 
 async function readTransitionRow(

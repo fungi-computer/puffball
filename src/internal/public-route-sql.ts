@@ -15,6 +15,15 @@ CREATE TABLE app_release_public_surfaces (
   publisher_user_id TEXT NOT NULL CHECK(length(publisher_user_id) BETWEEN 1 AND 256),
   authority_kind TEXT NOT NULL CHECK(authority_kind IN ('customer','platform')),
   request_key TEXT NOT NULL CHECK(length(request_key) BETWEEN 1 AND 256),
+  site_name TEXT,
+  site_visibility TEXT NOT NULL DEFAULT 'public' CHECK(site_visibility IN ('public','unlisted','private')),
+  site_revision INTEGER NOT NULL DEFAULT 1 CHECK(site_revision>0),
+  site_deleted INTEGER NOT NULL DEFAULT 0 CHECK(site_deleted IN (0,1)),
+  site_link_digest TEXT CHECK(site_link_digest IS NULL OR (length(site_link_digest)=71 AND substr(site_link_digest,1,7)='sha256:' AND substr(site_link_digest,8) NOT GLOB '*[^0-9a-f]*')),
+  site_link_sealed TEXT,
+  site_last_request TEXT,
+  CHECK((site_link_digest IS NULL)=(site_link_sealed IS NULL)),
+  CHECK(site_deleted=1 OR (site_visibility='unlisted')=(site_link_digest IS NOT NULL)),
   UNIQUE(publisher_team_id,request_key)
 ) STRICT;
 `.replaceAll("\n", " ");
@@ -41,7 +50,7 @@ AND (c.route_key IS NULL OR
 AND (s.authority_kind='platform' OR c.public_surface_id=s.public_surface_id OR
      (SELECT count(*) FROM app_release_route_claims own
       JOIN app_release_public_surfaces owned_surface ON owned_surface.public_surface_id=own.public_surface_id
-      WHERE own.team_id=s.publisher_team_id AND owned_surface.authority_kind='customer')<policy.max_team_routes)
+      WHERE own.team_id=s.publisher_team_id AND owned_surface.authority_kind='customer' AND (owned_surface.site_name IS NULL OR owned_surface.site_deleted=0))<policy.max_team_routes)
 AND (
   (s.authority_kind='platform' AND EXISTS (
     SELECT 1 FROM app_release_platform_routes p
@@ -51,9 +60,10 @@ AND (
   (s.authority_kind='customer' AND EXISTS (
     SELECT 1 FROM app_release_team_publishers p
     WHERE p.app_id=s.app_id AND p.team_id=s.publisher_team_id
-      AND p.source_provider='artifacts' AND p.source_repository=p.app_id
-      AND p.source_branch='main' AND p.template_app_id IS NOT NULL
-      AND p.template_app_id<>p.app_id AND p.template_seed_revision IS NOT NULL
+      AND ((p.source_provider='captured-output' AND s.site_name IS NOT NULL)
+        OR (p.source_provider='artifacts' AND p.source_repository=p.app_id
+          AND p.source_branch='main' AND p.template_app_id IS NOT NULL
+          AND p.template_app_id<>p.app_id AND p.template_seed_revision IS NOT NULL))
   ) AND (
     c.public_surface_id=s.public_surface_id OR (
       NOT EXISTS (SELECT 1 FROM app_release_platform_routes p
@@ -72,16 +82,17 @@ AND (
 /** One write: pre-check custody and bound unused rows before minting any Surface. */
 export const insertPublicSurfaceSql = `
 WITH candidate(public_surface_id,app_id,stable_route,route_key,
-               publisher_team_id,publisher_user_id,authority_kind,request_key)
-AS (VALUES (?,?,?,?,?,?,?,?))
+               publisher_team_id,publisher_user_id,authority_kind,request_key,site_name)
+AS (VALUES (?,?,?,?,?,?,?,?,?))
 INSERT INTO app_release_public_surfaces
-  (public_surface_id,app_id,stable_route,route_key,publisher_team_id,publisher_user_id,authority_kind,request_key)
+  (public_surface_id,app_id,stable_route,route_key,publisher_team_id,publisher_user_id,authority_kind,request_key,site_name)
 SELECT s.public_surface_id,s.app_id,s.stable_route,s.route_key,
-       s.publisher_team_id,s.publisher_user_id,s.authority_kind,s.request_key
+       s.publisher_team_id,s.publisher_user_id,s.authority_kind,s.request_key,s.site_name
 FROM candidate s
 JOIN app_release_route_policy policy ON policy.singleton=1
 LEFT JOIN app_release_route_claims c ON c.route_key=s.route_key
 WHERE ${surfaceEligibilitySql}
+AND EXISTS (SELECT 1 FROM app_release_apps a WHERE a.app_id=s.app_id)
 AND (SELECT count(*) FROM app_release_public_surfaces unused
      WHERE unused.app_id=s.app_id AND NOT EXISTS (
        SELECT 1 FROM app_release_transitions t
@@ -184,6 +195,7 @@ JOIN app_release_release_verifications v
 JOIN app_release_route_policy policy ON policy.singleton=1
 LEFT JOIN app_release_route_claims c ON c.route_key=s.route_key
 WHERE ${surfaceEligibilitySql}
+AND (s.site_name IS NULL OR s.site_deleted=0)
 AND NOT EXISTS (
   SELECT 1 FROM app_release_transitions revoked
   WHERE revoked.operation_kind='revocation' AND revoked.release_id=r.release_id

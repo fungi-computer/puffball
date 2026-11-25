@@ -876,6 +876,54 @@ deletes.
 
 ---
 
+### SiteDelivery
+
+```ts
+type SiteDelivery = Readonly<{
+  public_surface_id: PublicSurface["publicSurfaceId"];
+  app_id: PublicSurface["appId"];
+  stable_route: PublicSurface["stableRoute"];
+  publisher_team_id: string;
+  site_name: string;
+  site_revision: number;
+  site_visibility: "public" | "unlisted" | "private";
+  release_id: ReleaseId;
+  site_link_digest: Sha256Digest | null;
+}>;
+```
+
+One current, eligible Site selection, read in one native snapshot.
+
+---
+
+### SiteRecord
+
+```ts
+type SiteRecord = Omit<SiteDelivery, "release_id"> &
+  Readonly<{
+    release_id: ReleaseId | null;
+    site_deleted: 0 | 1;
+    site_link_sealed: string | null;
+  }>;
+```
+
+Host-only Site state; its capability is encrypted, never plaintext.
+
+---
+
+### SitePublicationReservation
+
+```ts
+type SitePublicationReservation = Readonly<{
+  surface: PublicSurface;
+  releaseId: ReleaseId;
+}>;
+```
+
+Site Surface and immutable Release identity reserved by a request.
+
+---
+
 ### ArtifactSnapshotPolicy
 
 ```ts
@@ -1223,3 +1271,31 @@ consumers.
 ---
 
 `null`
+
+---
+
+### createD1SitePublications()
+
+```ts
+function createD1SitePublications(database): object;
+```
+
+Native reservation only. Releases and promotions still use the catalog owner.
+
+#### Parameters
+
+| Parameter  | Type                                            |
+| ---------- | ----------------------------------------------- |
+| `database` | [`AppReleaseD1Database`](#appreleased1database) |
+
+#### Returns
+
+| Name              | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Description                                                                                  |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `delivery()`      | (`input`) => `Effect`\< \| `Readonly`\<\{ `public_surface_id`: [`PublicSurfaceId`](index.md#publicsurfaceid); `app_id`: [`AppId`](index.md#appid); `stable_route`: [`StableRoute`](index.md#stableroute); `publisher_team_id`: `string`; `site_name`: `string`; `site_revision`: `number`; `site_visibility`: `"private"` \| `"public"` \| `"unlisted"`; `release_id`: [`ReleaseId`](index.md#releaseid); `site_link_digest`: [`Sha256Digest`](index.md#sha256digest) \| `null`; \}\> \| `null`, [`SitePublicationError`](publisher.md#sitepublicationerror)\> | Current Site selection only; ordinary and historical App routes grant no Site access.        |
+| `read()`          | (`teamId`, `siteId`) => `Effect`\<[`SiteRecord`](#siterecord) \| `null`, [`SitePublicationError`](publisher.md#sitepublicationerror)\>                                                                                                                                                                                                                                                                                                                                                                                                                         | A Team-scoped administrative read; deleted names remain tombstones.                          |
+| `list()`          | (`teamId`) => `Effect`\<readonly [`SiteRecord`](#siterecord)[], [`SitePublicationError`](publisher.md#sitepublicationerror)\>                                                                                                                                                                                                                                                                                                                                                                                                                                  | Active reservations and published Sites, bounded by the native Team cap.                     |
+| `mutate()`        | (`input`) => `Effect`\<[`SiteRecord`](#siterecord), [`SitePublicationError`](publisher.md#sitepublicationerror)\>                                                                                                                                                                                                                                                                                                                                                                                                                                              | CAS plus append-only receipt is one D1 transaction. Retries never reissue an old capability. |
+| `checkCapacity()` | (`input`) => `Effect`\<`void`, [`SitePublicationError`](publisher.md#sitepublicationerror)\>                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Refuse a new Team/name before capture; reserve still enforces the cap atomically.            |
+| `completed()`     | (`input`) => `Effect`\< \| `Readonly`\<\{ `surface`: [`PublicSurface`](index.md#publicsurface); `releaseId`: [`ReleaseId`](index.md#releaseid); \}\> \| `null`, [`SitePublicationError`](publisher.md#sitepublicationerror)\>                                                                                                                                                                                                                                                                                                                                  | Read a completed request without rereading Computer output or R2 objects.                    |
+| `reserve()`       | (`input`) => `Effect`\<`Readonly`\<\{ `surface`: [`PublicSurface`](index.md#publicsurface); `releaseId`: [`ReleaseId`](index.md#releaseid); \}\>, [`SitePublicationError`](publisher.md#sitepublicationerror)\>                                                                                                                                                                                                                                                                                                                                                | Atomically reserve a Team/name Surface and the request's immutable Release identity.         |

@@ -1,5 +1,16 @@
 # @fungi.computer/puffball
 
+## 0.16.0
+
+### Minor Changes
+
+- Changes since 0.15.2:
+
+  - fix(sites): close lifecycle and HTTP delivery gaps
+  - feat(sites): serve promoted public and unlisted Sites
+  - fix(sites): bound capture and check quota before uploads
+  - feat(sites): capture Computer output as immutable App Releases
+
 ## 0.15.2
 
 ### Patch Changes

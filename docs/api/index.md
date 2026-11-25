@@ -1015,7 +1015,7 @@ Caller-provided idempotency key for one control-plane operation.
 type SourceRevision = string & object;
 ```
 
-Pinned lowercase Git source revision.
+Pinned Git source revision or the digest of captured, already-built output.
 
 #### Type Declaration
 
@@ -1262,6 +1262,17 @@ readonly stableRoute: StableRoute;
 ```
 
 Canonical local route locator for this Surface.
+
+##### site?
+
+```ts
+readonly optional site?: Readonly<{
+  name: string;
+}>;
+```
+
+A one-shot Site uses separate, visibility-aware delivery, never generic App
+URLs.
 
 ---
 
@@ -2803,7 +2814,7 @@ Parse a caller-provided idempotency key.
 const parseSourceRevision: (input) => SourceRevision;
 ```
 
-Parse a pinned lowercase Git source revision.
+Parse a pinned Git revision or captured Site manifest digest.
 
 #### Parameters
 

@@ -8,6 +8,26 @@
 
 # backend
 
+## Type Aliases
+
+### SiteHttpRequest
+
+```ts
+type SiteHttpRequest = Schema.Schema.Type<typeof siteHttpRequestSchema>;
+```
+
+Closed HTTP input carried by a signed Site backend dispatch.
+
+---
+
+### SiteHttpReply
+
+```ts
+type SiteHttpReply = Schema.Schema.Type<typeof siteHttpReplySchema>;
+```
+
+Bounded Site backend reply encoded as JSON across the execution rail.
+
 ## Variables
 
 ### appBackendRuntimeKindSchema
@@ -69,6 +89,35 @@ const backendJsonSchema: fromJsonString<
 ```
 
 Maintained JSON codec for immutable backend bytes.
+
+---
+
+### siteHttpRequestSchema
+
+```ts
+const siteHttpRequestSchema: Struct<{
+  url: String;
+  method: NonEmptyString;
+  contentType: NullOr<String>;
+  bodyBase64: String;
+}>;
+```
+
+Bounded HTTP cargo on the existing signed App-backend dispatch rail.
+
+---
+
+### siteHttpReplySchema
+
+```ts
+const siteHttpReplySchema: Struct<{
+  status: Number;
+  headers: $Array<Tuple<readonly [String, String]>>;
+  bodyBase64: String;
+}>;
+```
+
+Content-only HTTP result; browser origin policy stays with the host.
 
 ## Functions
 

@@ -60,3 +60,24 @@ export {
   type AppRegionEvent,
   type AppRegionReply,
 } from "./app-method-runtime.js";
+
+/** Bounded HTTP cargo on the existing signed App-backend dispatch rail. */
+export const siteHttpRequestSchema = Schema.Struct({
+  url: Schema.String,
+  method: Schema.NonEmptyString,
+  contentType: Schema.NullOr(Schema.String),
+  bodyBase64: Schema.String,
+});
+/** Closed HTTP input carried by a signed Site backend dispatch. */
+export type SiteHttpRequest = Schema.Schema.Type<typeof siteHttpRequestSchema>;
+/** Content-only HTTP result; browser origin policy stays with the host. */
+export const siteHttpReplySchema = Schema.Struct({
+  status: Schema.Number.check(
+    Schema.isInt(),
+    Schema.isBetween({ minimum: 200, maximum: 599 }),
+  ),
+  headers: Schema.Array(Schema.Tuple([Schema.String, Schema.String])),
+  bodyBase64: Schema.String,
+});
+/** Bounded Site backend reply encoded as JSON across the execution rail. */
+export type SiteHttpReply = Schema.Schema.Type<typeof siteHttpReplySchema>;

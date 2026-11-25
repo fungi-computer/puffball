@@ -769,7 +769,11 @@ function applyTransition(
                     ).pipe(
                       Effect.mapError(artifactSnapshotFailure),
                       Effect.flatMap((app) =>
-                        app.ui === null
+                        app.ui === null &&
+                        !(
+                          surface.surface.site !== undefined &&
+                          app.backend !== null
+                        )
                           ? Effect.fail(
                               new AppReleaseTransitionArtifactIncompatibleError(),
                             )
@@ -846,7 +850,8 @@ function comparePublicSurface(
   existing: PublicSurface,
 ): Effect.Effect<PublicSurface, AppReleaseImmutableConflictError> {
   return requested.appId === existing.appId &&
-    requested.stableRoute === existing.stableRoute
+    requested.stableRoute === existing.stableRoute &&
+    requested.site?.name === existing.site?.name
     ? Effect.succeed(existing)
     : Effect.fail(new AppReleaseImmutableConflictError());
 }

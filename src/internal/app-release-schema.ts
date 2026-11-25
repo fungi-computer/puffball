@@ -38,7 +38,7 @@ function isIdempotencyKey(input: string): input is IdempotencyKey {
 }
 
 function isSourceRevision(input: string): input is SourceRevision {
-  return /^git:[0-9a-f]{40}$/u.test(input);
+  return /^(?:git:[0-9a-f]{40}|bundle:sha256:[0-9a-f]{64})$/u.test(input);
 }
 
 function isSha256Digest(input: string): input is Sha256Digest {
@@ -53,6 +53,8 @@ const appReleaseIdFamily = defineIdFamily({
   family: "app-release",
   version: 1,
   kinds: {
+    app: { prefix: "app" },
+    release: { prefix: "rel" },
     transition: { prefix: "app_transition" },
     surface: { prefix: "ps" },
     erasure: { prefix: "app_erasure" },
@@ -62,6 +64,8 @@ const appReleaseIdFamily = defineIdFamily({
 /** Cairn owns the App transition identity grammar and parser. */
 export const appTransitionIdCodec = appReleaseIdFamily.transition;
 export const appSurfaceIdCodec = appReleaseIdFamily.surface;
+export const appIdentityCodec = appReleaseIdFamily.app;
+export const appReleaseIdentityCodec = appReleaseIdFamily.release;
 export const appErasureIdCodec = appReleaseIdFamily.erasure;
 
 /** Canonical Effect Schema for one Global App identifier. */
@@ -139,6 +143,11 @@ export const publicSurfaceSchema = Schema.Struct({
   publicSurfaceId: publicSurfaceIdSchema,
   appId: appIdSchema,
   stableRoute: stableRouteSchema,
+  site: Schema.optionalKey(
+    Schema.Struct({
+      name: Schema.String.check(Schema.isPattern(/^[A-Za-z0-9._-]{1,128}$/u)),
+    }),
+  ),
 });
 
 const publicationIdentitySchema = Schema.String.pipe(

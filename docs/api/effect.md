@@ -963,6 +963,11 @@ const publicSurfaceSchema: Struct<{
   publicSurfaceId: refine<PublicSurfaceId, String>;
   appId: refine<AppId, String>;
   stableRoute: refine<StableRoute, String>;
+  site: optionalKey<
+    Struct<{
+      name: String;
+    }>
+  >;
 }>;
 ```
 
@@ -1167,6 +1172,11 @@ const publicSurfaceReadSchema: Union<
         publicSurfaceId: refine<PublicSurfaceId, String>;
         appId: refine<AppId, String>;
         stableRoute: refine<StableRoute, String>;
+        site: optionalKey<
+          Struct<{
+            name: String;
+          }>
+        >;
       }>;
     }>,
     Struct<{
@@ -1191,6 +1201,11 @@ const publicSurfaceCreateSchema: Union<
         publicSurfaceId: refine<PublicSurfaceId, String>;
         appId: refine<AppId, String>;
         stableRoute: refine<StableRoute, String>;
+        site: optionalKey<
+          Struct<{
+            name: String;
+          }>
+        >;
       }>;
     }>,
     Struct<{
@@ -1199,6 +1214,11 @@ const publicSurfaceCreateSchema: Union<
         publicSurfaceId: refine<PublicSurfaceId, String>;
         appId: refine<AppId, String>;
         stableRoute: refine<StableRoute, String>;
+        site: optionalKey<
+          Struct<{
+            name: String;
+          }>
+        >;
       }>;
     }>,
     Struct<{
@@ -1496,6 +1516,9 @@ const publicSurfaceReadStoreResultSchema: Union<
               publicSurfaceId: PublicSurfaceId;
               appId: AppId;
               stableRoute: StableRoute;
+              site?: {
+                name: string;
+              };
             };
           }
         | {
@@ -1507,6 +1530,9 @@ const publicSurfaceReadStoreResultSchema: Union<
               publicSurfaceId: string;
               appId: string;
               stableRoute: string;
+              site?: {
+                name: string;
+              };
             };
           }
         | {
@@ -1544,6 +1570,9 @@ const publicSurfaceCreateStoreResultSchema: Union<
               publicSurfaceId: PublicSurfaceId;
               appId: AppId;
               stableRoute: StableRoute;
+              site?: {
+                name: string;
+              };
             };
           }
         | {
@@ -1552,6 +1581,9 @@ const publicSurfaceCreateStoreResultSchema: Union<
               publicSurfaceId: PublicSurfaceId;
               appId: AppId;
               stableRoute: StableRoute;
+              site?: {
+                name: string;
+              };
             };
           }
         | {
@@ -1563,6 +1595,9 @@ const publicSurfaceCreateStoreResultSchema: Union<
               publicSurfaceId: string;
               appId: string;
               stableRoute: string;
+              site?: {
+                name: string;
+              };
             };
           }
         | {
@@ -1571,6 +1606,9 @@ const publicSurfaceCreateStoreResultSchema: Union<
               publicSurfaceId: string;
               appId: string;
               stableRoute: string;
+              site?: {
+                name: string;
+              };
             };
           }
         | {
@@ -1941,6 +1979,9 @@ const decodePublicSurface: (
     publicSurfaceId: PublicSurfaceId;
     appId: AppId;
     stableRoute: StableRoute;
+    site?: {
+      name: string;
+    };
   },
   SchemaError
 >;
@@ -1959,7 +2000,8 @@ Decode a hostile public Surface through its canonical closed schema.
 
 `Result`\<\{ `publicSurfaceId`: [`PublicSurfaceId`](index.md#publicsurfaceid);
 `appId`: [`AppId`](index.md#appid); `stableRoute`:
-[`StableRoute`](index.md#stableroute); \}, `SchemaError`\>
+[`StableRoute`](index.md#stableroute); `site?`: \{ `name`: `string`; \}; \},
+`SchemaError`\>
 
 ---
 
@@ -2226,6 +2268,9 @@ const decodePublicSurfaceReadStoreResult: (
               publicSurfaceId: PublicSurfaceId;
               appId: AppId;
               stableRoute: StableRoute;
+              site?: {
+                name: string;
+              };
             };
           }
         | {
@@ -2257,9 +2302,9 @@ schema.
 `Result`\< \| \{ `kind`: `"success"`; `value`: \| \{ `kind`: `"found"`;
 `surface`: \{ `publicSurfaceId`: [`PublicSurfaceId`](index.md#publicsurfaceid);
 `appId`: [`AppId`](index.md#appid); `stableRoute`:
-[`StableRoute`](index.md#stableroute); \}; \} \| \{ `kind`: `"absent"`; \}; \}
-\| \{ `kind`: `"failure"`; `failure`: \{ `kind`: `"unavailable"`; \}; \},
-`SchemaError`\>
+[`StableRoute`](index.md#stableroute); `site?`: \{ `name`: `string`; \}; \}; \}
+\| \{ `kind`: `"absent"`; \}; \} \| \{ `kind`: `"failure"`; `failure`: \{
+`kind`: `"unavailable"`; \}; \}, `SchemaError`\>
 
 ---
 
@@ -2279,6 +2324,9 @@ const decodePublicSurfaceCreateStoreResult: (
               publicSurfaceId: PublicSurfaceId;
               appId: AppId;
               stableRoute: StableRoute;
+              site?: {
+                name: string;
+              };
             };
           }
         | {
@@ -2287,6 +2335,9 @@ const decodePublicSurfaceCreateStoreResult: (
               publicSurfaceId: PublicSurfaceId;
               appId: AppId;
               stableRoute: StableRoute;
+              site?: {
+                name: string;
+              };
             };
           }
         | {
@@ -2318,11 +2369,12 @@ schema.
 `Result`\< \| \{ `kind`: `"success"`; `value`: \| \{ `kind`: `"created"`;
 `surface`: \{ `publicSurfaceId`: [`PublicSurfaceId`](index.md#publicsurfaceid);
 `appId`: [`AppId`](index.md#appid); `stableRoute`:
-[`StableRoute`](index.md#stableroute); \}; \} \| \{ `kind`: `"existing"`;
-`surface`: \{ `publicSurfaceId`: [`PublicSurfaceId`](index.md#publicsurfaceid);
-`appId`: [`AppId`](index.md#appid); `stableRoute`:
-[`StableRoute`](index.md#stableroute); \}; \} \| \{ `kind`: `"conflict"`; \}; \}
-\| \{ `kind`: `"failure"`; `failure`: \{ `kind`: `"unavailable"`; \}; \},
+[`StableRoute`](index.md#stableroute); `site?`: \{ `name`: `string`; \}; \}; \}
+\| \{ `kind`: `"existing"`; `surface`: \{ `publicSurfaceId`:
+[`PublicSurfaceId`](index.md#publicsurfaceid); `appId`:
+[`AppId`](index.md#appid); `stableRoute`: [`StableRoute`](index.md#stableroute);
+`site?`: \{ `name`: `string`; \}; \}; \} \| \{ `kind`: `"conflict"`; \}; \} \|
+\{ `kind`: `"failure"`; `failure`: \{ `kind`: `"unavailable"`; \}; \},
 `SchemaError`\>
 
 ## Functions

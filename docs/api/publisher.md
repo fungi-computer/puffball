@@ -8,6 +8,65 @@
 
 # publisher
 
+## Classes
+
+### SitePublicationError
+
+Typed internal failure closed to a plain RPC rejection at the host boundary.
+
+#### Extends
+
+- `object` & `YieldableError`\<`this`\>
+
+#### Constructors
+
+##### Constructor
+
+```ts
+new SitePublicationError(...args): SitePublicationError;
+```
+
+###### Parameters
+
+| Parameter | Type                        |
+| --------- | --------------------------- |
+| ...`args` | \[`object`, `MakeOptions`\] |
+
+###### Returns
+
+[`SitePublicationError`](#sitepublicationerror)
+
+###### Inherited from
+
+```ts
+Schema.TaggedError<SitePublicationError>()("SitePublicationError", {
+  code: Schema.Literals(sitePublicationCodes),
+}).constructor;
+```
+
+#### Properties
+
+##### code
+
+```ts
+readonly code:
+  | "invalid"
+  | "denied"
+  | "unavailable"
+  | "conflict"
+  | "too_large"
+  | "limit"
+  | "private_unavailable";
+```
+
+###### Inherited from
+
+```ts
+Schema.TaggedError<SitePublicationError>()("SitePublicationError", {
+  code: Schema.Literals(sitePublicationCodes),
+}).code;
+```
+
 ## Type Aliases
 
 ### TeamAppTemplateSeed
@@ -108,6 +167,178 @@ type TeamAppPublisherRegistry = Readonly<{
 
 Durable App publisher facts; Team membership remains owned by Hub.
 
+---
+
+### SiteBundle
+
+```ts
+type SiteBundle = Schema.Schema.Type<typeof siteBundleSchema>;
+```
+
+Captured output references inside the admitted Team content namespace.
+
+---
+
+### SitePublicationRequest
+
+```ts
+type SitePublicationRequest = Schema.Schema.Type<
+  typeof sitePublicationRequestSchema
+>;
+```
+
+Parsed publication request, without host principal or quota fields.
+
+---
+
+### SitePublicationReceiptRequest
+
+```ts
+type SitePublicationReceiptRequest = Schema.Schema.Type<
+  typeof sitePublicationReceiptRequestSchema
+>;
+```
+
+Site name, publication request key and captured tool-intent digest.
+
+---
+
+### SitePublicationCode
+
+```ts
+type SitePublicationCode = (typeof sitePublicationCodes)[number];
+```
+
+One publication rejection code.
+
+---
+
+### SitePublicationResult
+
+```ts
+type SitePublicationResult =
+  | Readonly<{
+      kind: "published";
+      siteId: string;
+      url: string;
+      visibility: "public" | "unlisted";
+      releaseId: string;
+    }>
+  | Readonly<{
+      kind: "rejected";
+      code: SitePublicationCode;
+    }>;
+```
+
+Published immutable Release receipt or a closed rejection.
+
+---
+
+### AdmittedSitePublication
+
+```ts
+type AdmittedSitePublication = SitePublicationRequest &
+  Readonly<{
+    teamId: string;
+    actorId: string;
+    siteLimit: number;
+  }>;
+```
+
+Host-only additions: no tool input may choose Team, actor or quota.
+
+---
+
+### SiteReadRequest
+
+```ts
+type SiteReadRequest = Schema.Codec.Encoded<typeof siteReadRequestSchema>;
+```
+
+Team-scoped list or current Site lookup input.
+
+---
+
+### SiteMutationRequest
+
+```ts
+type SiteMutationRequest = Schema.Codec.Encoded<
+  typeof siteMutationRequestSchema
+>;
+```
+
+One visibility, link rotation or deletion intent with its stable request key.
+
+---
+
+### SiteInfo
+
+```ts
+type SiteInfo = Readonly<{
+  siteId: string;
+  name: string;
+  url: string;
+  releaseId: string | null;
+}> &
+  | Readonly<{
+  visibility: "public";
+}>
+  | Readonly<{
+  visibility: "unlisted";
+  shareUrl: string;
+}>;
+```
+
+Member/Agent-facing projection; no storage keys, ciphertext or host credentials.
+
+---
+
+### SiteReadResult
+
+```ts
+type SiteReadResult =
+  | Readonly<{
+      kind: "listed";
+      sites: readonly SiteInfo[];
+    }>
+  | Readonly<{
+      kind: "found";
+      site: SiteInfo;
+    }>
+  | Extract<
+      SitePublicationResult,
+      {
+        kind: "rejected";
+      }
+    >;
+```
+
+Current admitted Site projections or one closed rejection.
+
+---
+
+### SiteMutationResult
+
+```ts
+type SiteMutationResult =
+  | Readonly<{
+      kind: "updated";
+      site: SiteInfo;
+    }>
+  | Readonly<{
+      kind: "deleted";
+      siteId: string;
+    }>
+  | Extract<
+      SitePublicationResult,
+      {
+        kind: "rejected";
+      }
+    >;
+```
+
+Current Site projection or deletion receipt after an admitted lifecycle intent.
+
 ## Variables
 
 ### appSourceRepositorySchema
@@ -124,17 +355,46 @@ Canonical source repository resolved by the product publisher.
 
 ---
 
+### appPublicationSourceSchema
+
+```ts
+const appPublicationSourceSchema: Union<
+  readonly [
+    Struct<{
+      provider: Literals<readonly ["artifacts", "github"]>;
+      repository: String;
+      branch: Literal<"main">;
+    }>,
+    Struct<{
+      provider: Literal<"captured-output">;
+    }>,
+  ]
+>;
+```
+
+Captured Site output carries Release provenance rather than a fictitious
+repository.
+
+---
+
 ### teamAppPublisherRegistrationSchema
 
 ```ts
 const teamAppPublisherRegistrationSchema: Struct<{
   appId: refine<AppId, String>;
   teamId: String;
-  source: Struct<{
-    provider: Literals<readonly ["artifacts", "github"]>;
-    repository: String;
-    branch: Literal<"main">;
-  }>;
+  source: Union<
+    readonly [
+      Struct<{
+        provider: Literals<readonly ["artifacts", "github"]>;
+        repository: String;
+        branch: Literal<"main">;
+      }>,
+      Struct<{
+        provider: Literal<"captured-output">;
+      }>,
+    ]
+  >;
   templateSeed: optionalKey<
     Struct<{
       appId: refine<AppId, String>;
@@ -145,3 +405,223 @@ const teamAppPublisherRegistrationSchema: Struct<{
 ```
 
 Team-owned publication authority for one separately registered App.
+
+---
+
+### sitePublicationLimits
+
+```ts
+const sitePublicationLimits: object;
+```
+
+Bounds of captured, already-built Computer output; runtime policy may be
+stricter.
+
+#### Type Declaration
+
+| Name                                          | Type     | Default value |
+| --------------------------------------------- | -------- | ------------- |
+| <a id="property-files"></a> `files`           | `2000`   | `2_000`       |
+| <a id="property-totalbytes"></a> `totalBytes` | `number` | -             |
+| <a id="property-filebytes"></a> `fileBytes`   | `number` | -             |
+
+---
+
+### siteNameSchema
+
+```ts
+const siteNameSchema: String;
+```
+
+Team-local Site name, separate from its opaque route and identity.
+
+---
+
+### siteVisibilitySchema
+
+```ts
+const siteVisibilitySchema: Literals<
+  readonly ["public", "unlisted", "private"]
+>;
+```
+
+Visibility vocabulary; admission can refuse modes not yet served.
+
+---
+
+### siteFilePathSchema
+
+```ts
+const siteFilePathSchema: String;
+```
+
+Artifact-local names are relative POSIX paths, never filesystem paths or URLs.
+
+---
+
+### siteBundleSchema
+
+```ts
+const siteBundleSchema: Union<
+  readonly [
+    Struct<{
+      kind: Literal<"static">;
+      files: $Array<
+        Struct<{
+          digest: refine<Sha256Digest, String>;
+          byteLength: Number;
+          path: String;
+        }>
+      >;
+    }>,
+    Struct<{
+      kind: Literal<"worker">;
+      entry: Struct<{
+        digest: refine<Sha256Digest, String>;
+        byteLength: Number;
+      }>;
+    }>,
+  ]
+>;
+```
+
+Closed captured output with file-count, byte and static-media bounds.
+
+---
+
+### sitePublicationRequestSchema
+
+```ts
+const sitePublicationRequestSchema: Struct<{
+  requestId: String;
+  name: String;
+  intentDigest: refine<Sha256Digest, String>;
+  visibility: Literals<readonly ["public", "unlisted", "private"]>;
+  bundle: Union<
+    readonly [
+      Struct<{
+        kind: Literal<"static">;
+        files: $Array<
+          Struct<{
+            digest: refine<Sha256Digest, String>;
+            byteLength: Number;
+            path: String;
+          }>
+        >;
+      }>,
+      Struct<{
+        kind: Literal<"worker">;
+        entry: Struct<{
+          digest: refine<Sha256Digest, String>;
+          byteLength: Number;
+        }>;
+      }>,
+    ]
+  >;
+}>;
+```
+
+Domain request after the Agent has uploaded content-addressed objects.
+
+---
+
+### sitePublicationReceiptRequestSchema
+
+```ts
+const sitePublicationReceiptRequestSchema: Struct<{
+  name: String;
+  requestId: String;
+  intentDigest: refine<Sha256Digest, String>;
+}>;
+```
+
+Retry lookup and capacity admission identify the Site without waking its
+Computer.
+
+---
+
+### sitePublicationCodes
+
+```ts
+const sitePublicationCodes: readonly [
+  "denied",
+  "invalid",
+  "too_large",
+  "conflict",
+  "limit",
+  "unavailable",
+  "private_unavailable",
+];
+```
+
+Closed rejection vocabulary for publication and retry lookup.
+
+---
+
+### siteReadRequestSchema
+
+```ts
+const siteReadRequestSchema: Union<
+  readonly [
+    Struct<{
+      kind: Literal<"list">;
+    }>,
+    Struct<{
+      kind: Literal<"get">;
+      siteId: refine<PublicSurfaceId, String>;
+    }>,
+  ]
+>;
+```
+
+Site reads remain scoped to the Team selected by the trusted door.
+
+---
+
+### siteMutationRequestSchema
+
+```ts
+const siteMutationRequestSchema: Union<
+  readonly [
+    Struct<{
+      requestId: String;
+      siteId: refine<PublicSurfaceId, String>;
+      kind: Literal<"visibility">;
+      visibility: Literals<readonly ["public", "unlisted", "private"]>;
+    }>,
+    Struct<{
+      requestId: String;
+      siteId: refine<PublicSurfaceId, String>;
+      kind: Literal<"rotate">;
+    }>,
+    Struct<{
+      requestId: String;
+      siteId: refine<PublicSurfaceId, String>;
+      kind: Literal<"delete">;
+    }>,
+  ]
+>;
+```
+
+A request id names one lifecycle intent; repeating unlisted with a new id
+rotates.
+
+## Functions
+
+### isStaticSitePath()
+
+```ts
+function isStaticSitePath(path): boolean;
+```
+
+Static media vocabulary; executable server sources never enter a folder bundle.
+
+#### Parameters
+
+| Parameter | Type     |
+| --------- | -------- |
+| `path`    | `string` |
+
+#### Returns
+
+`boolean`

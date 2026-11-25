@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema";
+export * from "./site-publication.js";
 
 import type { AppId, SourceRevision } from "./internal/app-release-contract.js";
 import {
@@ -21,11 +22,17 @@ export const appSourceRepositorySchema = Schema.Struct({
   branch: Schema.Literal("main"),
 });
 
+/** Captured Site output carries Release provenance rather than a fictitious repository. */
+export const appPublicationSourceSchema = Schema.Union([
+  appSourceRepositorySchema,
+  Schema.Struct({ provider: Schema.Literal("captured-output") }),
+]);
+
 /** Team-owned publication authority for one separately registered App. */
 export const teamAppPublisherRegistrationSchema = Schema.Struct({
   appId: appIdSchema,
   teamId: boundedIdentity,
-  source: appSourceRepositorySchema,
+  source: appPublicationSourceSchema,
   templateSeed: Schema.optionalKey(
     Schema.Struct({ appId: appIdSchema, revision: sourceRevisionSchema }),
   ),

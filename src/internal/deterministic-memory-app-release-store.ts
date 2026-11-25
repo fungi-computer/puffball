@@ -49,11 +49,13 @@ function copyRelease(release: Release): Release {
 }
 
 function copyPublicSurface(surface: PublicSurface): PublicSurface {
-  return {
+  const copy = {
     publicSurfaceId: surface.publicSurfaceId,
     appId: surface.appId,
     stableRoute: surface.stableRoute,
   };
+  if (surface.site !== undefined) return { ...copy, site: { ...surface.site } };
+  return copy;
 }
 
 function copyTransition(transition: ReleaseTransition): ReleaseTransition {
@@ -130,11 +132,16 @@ export function createDeterministicMemoryAppReleaseStore(
       (value) => value.appId === surface.appId,
     );
     if (
-      publisher?.teamId !== surface.publisher.teamId ||
-      publisher.source.provider !== "artifacts" ||
-      publisher.source.repository !== surface.appId ||
-      !publisher.templateSeed ||
-      publisher.templateSeed.appId === surface.appId
+      !(
+        surface.site !== undefined &&
+        publisher?.source.provider === "captured-output" &&
+        publisher.teamId === surface.publisher.teamId
+      ) &&
+      (publisher?.teamId !== surface.publisher.teamId ||
+        publisher.source.provider !== "artifacts" ||
+        publisher.source.repository !== surface.appId ||
+        !publisher.templateSeed ||
+        publisher.templateSeed.appId === surface.appId)
     )
       return false;
     if (held) return true;
@@ -202,7 +209,11 @@ export function createDeterministicMemoryAppReleaseStore(
     readonly expectedReleaseId?: Release["releaseId"];
   }): Promise<AppReleaseStoreResult<PublicWebsiteAuthority>> => {
     const matches = [...claims.values()]
-      .filter((surface) => surface.stableRoute === request.stableRoute)
+      .filter(
+        (surface) =>
+          surface.stableRoute === request.stableRoute &&
+          surface.site === undefined,
+      )
       .slice(0, 2);
     if (matches.length === 0)
       return Promise.resolve(successful({ kind: "absent" }));
@@ -325,7 +336,8 @@ export function createDeterministicMemoryAppReleaseStore(
           existing.appId !== surface.appId ||
           existing.stableRoute !== surface.stableRoute ||
           existing.publisher.kind !== surface.publisher.kind ||
-          existing.publisher.userId !== surface.publisher.userId
+          existing.publisher.userId !== surface.publisher.userId ||
+          existing.site?.name !== surface.site?.name
         )
           return Promise.resolve(successful({ kind: "conflict" }));
         return Promise.resolve(

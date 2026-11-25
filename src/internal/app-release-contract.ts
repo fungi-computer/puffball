@@ -20,7 +20,7 @@ export type IdempotencyKey = string & {
   readonly appReleaseKind: "IdempotencyKey";
 };
 
-/** Pinned lowercase Git source revision. */
+/** Pinned Git source revision or the digest of captured, already-built output. */
 export type SourceRevision = string & {
   readonly appReleaseKind: "SourceRevision";
 };
@@ -99,6 +99,8 @@ export type PublicSurface = {
 
   /** Canonical local route locator for this Surface. */
   readonly stableRoute: StableRoute;
+  /** A one-shot Site uses separate, visibility-aware delivery, never generic App URLs. */
+  readonly site?: Readonly<{ name: string }>;
 };
 
 /** Admitted publisher identity retained separately from public Surface metadata. */

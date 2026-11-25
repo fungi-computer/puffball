@@ -93,7 +93,6 @@ export const parsePublicSurfaceId = makeParser(
 /** Publisher issues customer Surface identities through Cairn, never from slugs. */
 export const issuePublicSurfaceId = () =>
   parsePublicSurfaceId(appSurfaceIdCodec.generate());
-
 /** Parse an opaque bounded artifact reference. */
 export const parseArtifactRef = makeParser("ArtifactRef", decodeArtifactRef);
 
@@ -103,7 +102,7 @@ export const parseIdempotencyKey = makeParser(
   decodeIdempotencyKey,
 );
 
-/** Parse a pinned lowercase Git source revision. */
+/** Parse a pinned Git revision or captured Site manifest digest. */
 export const parseSourceRevision = makeParser(
   "SourceRevision",
   decodeSourceRevision,
