@@ -1,6 +1,6 @@
 {
   "name": "@fungi.computer/puffball",
-  "version": "0.18.0",
+  "version": "0.18.1",
   "author": "Levi <levi@technomancy.dev>",
   "description": "Immutable App/Release catalog with verified public website delivery",
   "type": "module",
@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./failure-facts": {
+      "types": "./dist/failure-facts.d.ts",
+      "import": "./dist/failure-facts.js"
     },
     "./effect": {
       "types": "./dist/effect.d.ts",

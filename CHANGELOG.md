@@ -1,5 +1,17 @@
 # @fungi.computer/puffball
 
+## 0.18.1
+
+### Patch Changes
+
+- Changes since 0.18.0:
+
+  - fix(puffball): import zod as a namespace in failure-facts so Apps tree-shake
+    its locales
+  - fix(hub): one failure decoder for hub and puffball, no frame from a message
+  - fix(hub): name a bare failure by class, code and frame, and report storage
+    faults
+
 ## 0.18.0
 
 ### Minor Changes

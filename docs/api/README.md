@@ -19,6 +19,7 @@
 | [background-replay](background-replay.md)                           | -           |
 | [cloudflare](cloudflare.md)                                         | -           |
 | [effect](effect.md)                                                 | -           |
+| [failure-facts](failure-facts.md)                                   | -           |
 | [git-representation](git-representation.md)                         | -           |
 | [inbox](inbox.md)                                                   | -           |
 | [index](index.md)                                                   | -           |

@@ -5,6 +5,7 @@
   "entryPoints": [
     "src/index.ts",
     "src/effect.ts",
+    "src/failure-facts.ts",
     "src/cloudflare.ts",
     "src/publisher.ts",
     "src/backend.ts",
