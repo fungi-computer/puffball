@@ -1,5 +1,14 @@
 # @fungi.computer/puffball
 
+## 0.18.0
+
+### Minor Changes
+
+- Changes since 0.17.0:
+
+  - feat(sites): count page views and bind the App Host limits
+  - feat(sites): cap and throttle public Site traffic
+
 ## 0.17.0
 
 ### Minor Changes

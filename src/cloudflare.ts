@@ -860,6 +860,10 @@ export function createTeamAppReleaseErasure(
               appId,
             ),
             statement(
+              "DELETE FROM app_release_site_traffic WHERE public_surface_id IN (SELECT public_surface_id FROM app_release_public_surfaces WHERE app_id=?)",
+              appId,
+            ),
+            statement(
               "DELETE FROM app_release_site_publications WHERE public_surface_id IN (SELECT public_surface_id FROM app_release_public_surfaces WHERE app_id=?)",
               appId,
             ),
@@ -1054,6 +1058,7 @@ CREATE INDEX app_release_public_surfaces_stable_route_idx ON app_release_public_
 CREATE UNIQUE INDEX app_release_site_names ON app_release_public_surfaces(publisher_team_id,site_name) WHERE site_name IS NOT NULL;
 CREATE TABLE app_release_site_publications (team_id TEXT NOT NULL, request_id TEXT NOT NULL, public_surface_id TEXT NOT NULL REFERENCES app_release_public_surfaces(public_surface_id), release_id TEXT NOT NULL, input_digest TEXT NOT NULL, intent_digest TEXT NOT NULL, PRIMARY KEY(team_id,request_id)) STRICT;
 CREATE UNIQUE INDEX app_release_site_link_digests ON app_release_public_surfaces(site_link_digest) WHERE site_link_digest IS NOT NULL;
+CREATE TABLE app_release_site_traffic (public_surface_id TEXT NOT NULL REFERENCES app_release_public_surfaces(public_surface_id), day TEXT NOT NULL CHECK(day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'), requests INTEGER NOT NULL CHECK(requests>=0), PRIMARY KEY(public_surface_id,day)) STRICT;
 CREATE TABLE app_release_site_operations (team_id TEXT NOT NULL, request_id TEXT NOT NULL, public_surface_id TEXT NOT NULL REFERENCES app_release_public_surfaces(public_surface_id), request_digest TEXT NOT NULL, actor_id TEXT NOT NULL, PRIMARY KEY(team_id,request_id)) STRICT;
 
 CREATE INDEX app_release_transitions_selected_surface_idx ON app_release_transitions (public_surface_id, operation_kind, sequence DESC) WHERE operation_kind IN ('promotion', 'rollback');

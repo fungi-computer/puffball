@@ -279,6 +279,13 @@ type SiteInfo = Readonly<{
   name: string;
   url: string;
   releaseId: string | null;
+  traffic: Readonly<{
+     day: string;
+     requests: number;
+     dailyLimit: number;
+     limited: boolean;
+     resetsAt: string;
+  }>;
 }> &
   | Readonly<{
   visibility: "public";
@@ -424,6 +431,23 @@ stricter.
 | <a id="property-files"></a> `files`           | `2000`   | `2_000`       |
 | <a id="property-totalbytes"></a> `totalBytes` | `number` | -             |
 | <a id="property-filebytes"></a> `fileBytes`   | `number` | -             |
+
+---
+
+### siteTrafficLimits
+
+```ts
+const siteTrafficLimits: object;
+```
+
+Hard per-Site traffic ceilings. Levi, 2026-11-25: every Site has a daily request
+cap so no Team gets a surprise bill; the day is a UTC calendar day.
+
+#### Type Declaration
+
+| Name                                                | Type     | Default value |
+| --------------------------------------------------- | -------- | ------------- |
+| <a id="property-dailyrequests"></a> `dailyRequests` | `100000` | `100_000`     |
 
 ---
 
@@ -607,6 +631,46 @@ A request id names one lifecycle intent; repeating unlisted with a new id
 rotates.
 
 ## Functions
+
+### siteTrafficDay()
+
+```ts
+function siteTrafficDay(now): string;
+```
+
+The UTC calendar day a Site's traffic is counted against, as YYYY-MM-DD.
+
+#### Parameters
+
+| Parameter | Type     |
+| --------- | -------- |
+| `now`     | `number` |
+
+#### Returns
+
+`string`
+
+---
+
+### siteTrafficResetsAt()
+
+```ts
+function siteTrafficResetsAt(now): number;
+```
+
+Midnight UTC that ends `now`'s traffic day, in milliseconds.
+
+#### Parameters
+
+| Parameter | Type     |
+| --------- | -------- |
+| `now`     | `number` |
+
+#### Returns
+
+`number`
+
+---
 
 ### isStaticSitePath()
 

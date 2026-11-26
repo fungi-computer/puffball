@@ -23,7 +23,7 @@ import {
   stableRouteSchema,
   releaseIdSchema,
 } from "./app-release-schema.js";
-import { SitePublicationError } from "../site-publication.js";
+import { SitePublicationError, siteTrafficDay } from "../site-publication.js";
 import { insertPublicSurfaceSql } from "./public-route-sql.js";
 import { publicRouteKey } from "../public-route-policy.js";
 import type { AppReleaseD1Database } from "../cloudflare.js";
@@ -161,6 +161,74 @@ export function createD1SitePublications(database: AppReleaseD1Database) {
           )
             return null;
           return found;
+        },
+      });
+    },
+    /**
+     * Count one visitor request against the Site's UTC-day cap in a single
+     * statement. False means the cap is already spent and nothing was counted.
+     */
+    admitTraffic(input: {
+      siteId: string;
+      now: number;
+      limit: number;
+    }): Effect.Effect<boolean, SitePublicationError> {
+      return Effect.tryPromise({
+        catch: failure,
+        try: async () => {
+          const row = await database
+            .prepare(
+              `INSERT INTO app_release_site_traffic(public_surface_id,day,requests) VALUES(?,?,1)
+              ON CONFLICT(public_surface_id,day) DO UPDATE SET requests=requests+1 WHERE requests<?
+              RETURNING requests`,
+            )
+            .bind(input.siteId, siteTrafficDay(input.now), input.limit)
+            .first();
+          return row !== null;
+        },
+      });
+    },
+    /** Page views counted on `now`'s UTC day for each Site, in one query; a Site with none is absent. */
+    traffic(
+      siteIds: readonly string[],
+      now: number,
+    ): Effect.Effect<ReadonlyMap<string, number>, SitePublicationError> {
+      return Effect.tryPromise({
+        catch: failure,
+        try: async () => {
+          if (siteIds.length === 0) return new Map<string, number>();
+          const rows = await database
+            .prepare(
+              `SELECT public_surface_id,requests FROM app_release_site_traffic WHERE day=? AND public_surface_id IN (${siteIds.map(() => "?").join(",")})`,
+            )
+            .bind(siteTrafficDay(now), ...siteIds)
+            .all();
+          if (!rows.success) throw new Error("Site traffic unavailable");
+          return new Map(
+            Schema.decodeUnknownSync(
+              Schema.Array(
+                Schema.Struct({
+                  public_surface_id: Schema.String,
+                  requests: Schema.Number,
+                }),
+              ),
+            )(rows.results).map((row) => [row.public_surface_id, row.requests]),
+          );
+        },
+      });
+    },
+    /** Drop daily counts older than `keepDays` UTC days; billing never reads them. */
+    pruneTraffic(
+      now: number,
+      keepDays: number,
+    ): Effect.Effect<void, SitePublicationError> {
+      return Effect.tryPromise({
+        catch: failure,
+        try: async () => {
+          await database
+            .prepare("DELETE FROM app_release_site_traffic WHERE day<?")
+            .bind(siteTrafficDay(now - keepDays * 24 * 60 * 60 * 1000))
+            .run();
         },
       });
     },

@@ -11,6 +11,24 @@ export const sitePublicationLimits = {
   fileBytes: 5 * 1024 * 1024,
 } as const;
 
+/**
+ * Hard per-Site traffic ceilings. Levi, 2026-11-25: every Site has a daily
+ * request cap so no Team gets a surprise bill; the day is a UTC calendar day.
+ */
+export const siteTrafficLimits = {
+  dailyRequests: 100_000,
+} as const;
+
+/** The UTC calendar day a Site's traffic is counted against, as YYYY-MM-DD. */
+export function siteTrafficDay(now: number): string {
+  return new Date(now).toISOString().slice(0, 10);
+}
+
+/** Midnight UTC that ends `now`'s traffic day, in milliseconds. */
+export function siteTrafficResetsAt(now: number): number {
+  return Date.parse(siteTrafficDay(now)) + 24 * 60 * 60 * 1000;
+}
+
 /** Team-local Site name, separate from its opaque route and identity. */
 export const siteNameSchema = Schema.String.check(
   Schema.isPattern(/^[A-Za-z0-9._-]{1,128}$/u),
@@ -192,6 +210,14 @@ export type SiteInfo = Readonly<{
   name: string;
   url: string;
   releaseId: string | null;
+  /** Today's (UTC) request count against the hard daily cap; at the cap the Site refuses visitors until `resetsAt`. */
+  traffic: Readonly<{
+    day: string;
+    requests: number;
+    dailyLimit: number;
+    limited: boolean;
+    resetsAt: string;
+  }>;
 }> &
   (
     | Readonly<{ visibility: "public" }>
