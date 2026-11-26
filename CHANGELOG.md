@@ -1,5 +1,13 @@
 # @fungi.computer/puffball
 
+## 0.17.0
+
+### Minor Changes
+
+- Changes since 0.16.0:
+
+  - feat(hub): push an Agent's name and avatar changes on the Inbox feed
+
 ## 0.16.0
 
 ### Minor Changes

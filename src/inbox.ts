@@ -73,9 +73,21 @@ export const memberInboxItemSchema = Schema.Union([
 ]);
 /** An Inbox row is a Session or a human Workflow review. */
 export type MemberInboxItem = typeof memberInboxItemSchema.Type;
-/** A row replacement or an Agent-owned Session deletion. */
+/**
+ * An Agent's identity (name or avatar) changed. It carries no new identity: a
+ * client re-reads its Agent directory. It is a change signal on the feed, never
+ * a row in a page.
+ */
+export const agentIdentityInboxItemSchema = Schema.Struct({
+  kind: Schema.Literal("agent-identity"),
+  agentId: identity,
+});
+/** The signal that an Agent's name or avatar changed. */
+export type AgentIdentityInboxItem = typeof agentIdentityInboxItemSchema.Type;
+/** A row replacement, an Agent-owned Session deletion or an Agent identity change. */
 export const memberInboxDeltaItemSchema = Schema.Union([
   memberInboxItemSchema,
+  agentIdentityInboxItemSchema,
   Schema.Struct({
     agentId: identity,
     sessionId: identity,
@@ -92,6 +104,8 @@ export function memberInboxKey(agentId: string, sessionId: string): string {
 
 /** Stable placement across review transitions; Map iterations remain distinct. */
 export function memberInboxItemKey(item: MemberInboxDeltaItem): string {
+  if ("kind" in item && item.kind === "agent-identity")
+    return JSON.stringify([item.kind, item.agentId]);
   return "kind" in item
     ? JSON.stringify([
         item.kind,

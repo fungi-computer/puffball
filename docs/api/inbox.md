@@ -50,6 +50,16 @@ An Inbox row is a Session or a human Workflow review.
 
 ---
 
+### AgentIdentityInboxItem
+
+```ts
+type AgentIdentityInboxItem = typeof agentIdentityInboxItemSchema.Type;
+```
+
+The signal that an Agent's name or avatar changed.
+
+---
+
 ### MemberInboxDeltaItem
 
 ```ts
@@ -185,6 +195,21 @@ The INBOX wire has one vocabulary on every host and App client.
 
 ---
 
+### agentIdentityInboxItemSchema
+
+```ts
+const agentIdentityInboxItemSchema: Struct<{
+  kind: Literal<"agent-identity">;
+  agentId: String;
+}>;
+```
+
+An Agent's identity (name or avatar) changed. It carries no new identity: a
+client re-reads its Agent directory. It is a change signal on the feed, never a
+row in a page.
+
+---
+
 ### memberInboxDeltaItemSchema
 
 ```ts
@@ -237,6 +262,10 @@ const memberInboxDeltaItemSchema: Union<
       ]
     >,
     Struct<{
+      kind: Literal<"agent-identity">;
+      agentId: String;
+    }>,
+    Struct<{
       agentId: String;
       sessionId: String;
       deleted: Literal<true>;
@@ -245,7 +274,7 @@ const memberInboxDeltaItemSchema: Union<
 >;
 ```
 
-A row replacement or an Agent-owned Session deletion.
+A row replacement, an Agent-owned Session deletion or an Agent identity change.
 
 ## Functions
 
@@ -280,9 +309,9 @@ Stable placement across review transitions; Map iterations remain distinct.
 
 #### Parameters
 
-| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `item`    | \| \{ `agentId`: `string`; `sessionId`: `string`; `title`: `string`; `triggerId?`: `string`; `createdAt`: `number`; `lastActivityAt`: `number`; `settledAt?`: `number`; `visitedAt?`: `number`; `state`: `"running"` \| `"done"` \| `"needs_you"` \| `"errored"`; \} \| \{ `agentId`: `string`; `sessionId`: `string`; `state`: `"unavailable"`; \} \| \{ `kind`: `"workflow-review"`; `key`: \{ `runId`: `string`; `nodeId`: `string`; `iteration`: `string`; \}; `installationId`: `string`; `workflowId`: `string` \| `null`; `workflowTitle`: `string`; `reviewTitle`: `string`; `reviewers`: `"runner"` \| `"owners"`; `show`: readonly `Json`[]; `choices?`: readonly `string`[]; `openedAt`: `number`; `expiresAt`: `number`; `state`: `"closed"` \| `"pending"` \| `"answered"` \| `"delivered"` \| `"timed_out"`; \} \| \{ `agentId`: `string`; `sessionId`: `string`; `deleted`: `true`; \} |
+| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `item`    | \| \{ `agentId`: `string`; `sessionId`: `string`; `title`: `string`; `triggerId?`: `string`; `createdAt`: `number`; `lastActivityAt`: `number`; `settledAt?`: `number`; `visitedAt?`: `number`; `state`: `"running"` \| `"done"` \| `"needs_you"` \| `"errored"`; \} \| \{ `agentId`: `string`; `sessionId`: `string`; `state`: `"unavailable"`; \} \| \{ `kind`: `"workflow-review"`; `key`: \{ `runId`: `string`; `nodeId`: `string`; `iteration`: `string`; \}; `installationId`: `string`; `workflowId`: `string` \| `null`; `workflowTitle`: `string`; `reviewTitle`: `string`; `reviewers`: `"runner"` \| `"owners"`; `show`: readonly `Json`[]; `choices?`: readonly `string`[]; `openedAt`: `number`; `expiresAt`: `number`; `state`: `"closed"` \| `"pending"` \| `"answered"` \| `"delivered"` \| `"timed_out"`; \} \| \{ `kind`: `"agent-identity"`; `agentId`: `string`; \} \| \{ `agentId`: `string`; `sessionId`: `string`; `deleted`: `true`; \} |
 
 #### Returns
 
