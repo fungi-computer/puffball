@@ -92,7 +92,9 @@ const frameLineSchema = z.string().regex(/^\s+at\s/u);
  */
 function thrownAt(cause: Error): string | undefined {
   const stack = cause.stack ?? "";
-  const header = String(cause);
+  // The built-in rendering, not an override: a `toString` that returns "" or
+  // "Error" would make every line of a message look like a frame.
+  const header = Error.prototype.toString.call(cause);
   if (!stack.startsWith(header)) return undefined;
   const frame = stack
     .slice(header.length)
@@ -141,6 +143,20 @@ export function describeFailureFacts(
   return facts;
 }
 
+const nameSchema = z.string().regex(/^[A-Za-z_$][\w$.]{0,63}$/u);
+
+type Read<Value> =
+  Readonly<{ kind: "read"; value: Value }> | Readonly<{ kind: "unreadable" }>;
+
+/** One read of a possibly hostile error: a getter that throws is `unreadable`, never a rejection. */
+function read<Value>(from: () => Value): Read<Value> {
+  try {
+    return { kind: "read", value: from() };
+  } catch {
+    return { kind: "unreadable" };
+  }
+}
+
 /** One error and its causes as an event may carry them: class, facts, nested cause. */
 export type FailureChain = FailureFacts & {
   /** `error` for an Error, `non-error` for anything else thrown. */
@@ -151,15 +167,20 @@ export type FailureChain = FailureFacts & {
   cause?: FailureChain;
 };
 
-/** {@link describeFailureFacts} for an error and its nested causes, always located. */
+/**
+ * {@link describeFailureFacts} for an error and its nested causes, always
+ * located. It never throws: a getter on the error that throws (name, stack,
+ * message, cause) costs that one fact, not the answer its caller is giving.
+ */
 export function describeFailureChain(cause: unknown, depth = 0): FailureChain {
   if (!(cause instanceof Error)) return { kind: "non-error" };
-  const chain: FailureChain = {
-    kind: "error",
-    name: cause.name,
-    ...describeFailureFacts(cause, true),
-  };
-  if (cause.cause !== undefined && depth < 3)
-    chain.cause = describeFailureChain(cause.cause, depth + 1);
+  const chain: FailureChain = { kind: "error" };
+  const name = read(() => nameSchema.safeParse(cause.name));
+  if (name.kind === "read" && name.value.success) chain.name = name.value.data;
+  const facts = read(() => describeFailureFacts(cause, true));
+  if (facts.kind === "read") Object.assign(chain, facts.value);
+  const wrapped = read(() => cause.cause);
+  if (wrapped.kind === "read" && wrapped.value !== undefined && depth < 3)
+    chain.cause = describeFailureChain(wrapped.value, depth + 1);
   return chain;
 }

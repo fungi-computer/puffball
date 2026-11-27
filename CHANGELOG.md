@@ -1,5 +1,16 @@
 # @fungi.computer/puffball
 
+## 0.18.2
+
+### Patch Changes
+
+- Changes since 0.18.1:
+
+  - fix(puffball): regenerate failure-facts docs and satisfy the void-expression
+    lint
+  - fix(puffball): describeFailureChain never throws, builds its header the
+    built-in way and bounds name
+
 ## 0.18.1
 
 ### Patch Changes

@@ -104,7 +104,9 @@ function describeFailureChain(cause, depth?): FailureChain;
 ```
 
 [describeFailureFacts](#describefailurefacts) for an error and its nested
-causes, always located.
+causes, always located. It never throws: a getter on the error that throws
+(name, stack, message, cause) costs that one fact, not the answer its caller is
+giving.
 
 #### Parameters
 

@@ -91,3 +91,55 @@ it("names a failed App Release store call by its category and frame, never its m
   expect(event.cause.name).toBe("Error");
   expect(lines[0]).not.toContain("private-artifact-body");
 });
+
+it("never throws, whichever accessor of the error throws", () => {
+  const hostile = (property: "stack" | "name" | "cause" | "message") => {
+    const failure = new Error("x");
+    Object.defineProperty(failure, property, {
+      get() {
+        throw new Error("hostile getter");
+      },
+    });
+    return failure;
+  };
+  for (const property of ["stack", "name", "cause", "message"] as const) {
+    const chain = describeFailureChain(hostile(property));
+    expect(chain.kind).toBe("error");
+  }
+  // The rest of the chain survives the one hostile read.
+  expect(describeFailureChain(hostile("stack")).name).toBe("Error");
+  // A throwing name also fails the stack header, so that error names no frame.
+  expect(describeFailureChain(hostile("name")).thrownAt).toBeUndefined();
+  const nested = new Error("outer", { cause: hostile("stack") });
+  expect(describeFailureChain(nested).cause?.kind).toBe("error");
+  // A throwing getter on the wrapped error cannot reject its reporter either.
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
+  expect(() => {
+    reportFailure("persist App Release operation", hostile("stack"));
+  }).not.toThrow();
+});
+
+it("builds the stack header the built-in way, so a toString override cannot expose message lines", () => {
+  for (const rendered of ["", "Error"]) {
+    const failure = new Error(
+      'bad "x\n    at user@example.com token=sk_live_ABC"',
+    );
+    failure.toString = () => rendered;
+    const chain = describeFailureChain(failure);
+    expect(JSON.stringify(chain)).not.toContain("user@example.com");
+    expect(JSON.stringify(chain)).not.toContain("sk_live");
+  }
+});
+
+it.each([
+  ["Error", "Error"],
+  ["AppInstanceError", "AppInstanceError"],
+  ["Pg.Error$1", "Pg.Error$1"],
+  ["user@example.com token=sk_live_ABC", undefined],
+  ["", undefined],
+  ["x".repeat(65), undefined],
+])("bounds the logged class name %j", (name, expected) => {
+  const failure = new Error("x");
+  failure.name = name;
+  expect(describeFailureChain(failure).name).toBe(expected);
+});
